@@ -97,7 +97,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             // 3. Play Button
             Button(
                 onClick = { 
-                    activity?.startActivity(android.content.Intent(activity, GameActivity::class.java))
+                    activity?.startActivity(android.content.Intent(activity, MainGame::class.java))
                 },
                 modifier = Modifier
                     .width(240.dp)

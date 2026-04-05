@@ -23,10 +23,25 @@ import androidx.compose.ui.res.painterResource
 import com.example.sweepneko.ui.theme.SweepNekoTheme
 import kotlinx.coroutines.delay
 import kotlin.math.sqrt
+import kotlin.math.max
+import kotlin.math.min
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.systemGestureExclusion
 
-class GameActivity : ComponentActivity() {
+class MainGame : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Immersive Fullscreen Mode (Hide system navigation gestures)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        val windowInsetsController = androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
+        windowInsetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        
         enableEdgeToEdge()
         setContent {
             SweepNekoTheme {
@@ -52,16 +67,26 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var enemies by remember { mutableStateOf(listOf<Enemy>()) }
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
     
+    var slashStart by remember { mutableStateOf<Offset?>(null) }
+    var slashEnd by remember { mutableStateOf<Offset?>(null) }
+    
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-    
-    val characterWidthDp = 120.dp
-    val characterHeightDp = 120.dp
+
+    //sizechar
+    val sizechar = 400.dp
+    val characterWidthDp = sizechar
+    val characterHeightDp = sizechar
     val characterWidthPx = with(density) { characterWidthDp.toPx() }
     val characterHeightPx = with(density) { characterHeightDp.toPx() }
+
+    // Hitbox Size
+    val hitboxchar = 100.dp
+    val characterHitboxWidthPx = with(density) { hitboxchar.toPx() }
+    val characterHitboxHeightPx = with(density) { hitboxchar.toPx() }
     
     val enemyWidthDp = 60.dp
     val enemyHeightDp = 60.dp
@@ -73,20 +98,28 @@ fun GameScreen(modifier: Modifier = Modifier) {
     
     var spawnCount by remember { mutableLongStateOf(0L) }
 
+    var isPaused by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        var lastSpawnTime = System.currentTimeMillis()
+        var lastFrameTime = System.currentTimeMillis()
+        var timeSinceLastSpawn = 0L
+
         while (hp > 0) {
             val currentTime = System.currentTimeMillis()
-            
-            // Spawn enemy every 5 seconds
-            if (currentTime - lastSpawnTime >= 5000) {
-                // Spawn in spawn zone (above screen or top of screen)
-                val spawnX = (Math.random() * (screenWidthPx - enemyWidthPx) + enemyWidthPx/2f).toFloat()
-                val spawnY = -enemyHeightPx // Offscreen above
-                spawnCount++
-                enemies = enemies + Enemy(id = spawnCount, x = spawnX, y = spawnY, speed = 4f)
-                lastSpawnTime = currentTime
-            }
+            val dt = currentTime - lastFrameTime
+            lastFrameTime = currentTime
+
+            if (!isPaused) {
+                timeSinceLastSpawn += dt
+                // Spawn enemy every 5 seconds
+                if (timeSinceLastSpawn >= 5000) {
+                    // Spawn in spawn zone (above screen or top of screen)
+                    val spawnX = (Math.random() * (screenWidthPx - enemyWidthPx) + enemyWidthPx/2f).toFloat()
+                    val spawnY = -enemyHeightPx // Offscreen above
+                    spawnCount++
+                    enemies = enemies + Enemy(id = spawnCount, x = spawnX, y = spawnY, speed = 4f)
+                    timeSinceLastSpawn = 0L
+                }
             
             // Move enemies & check collision
             var newHp = hp
@@ -108,10 +141,10 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 val enemyTop = ny - enemyHeightPx / 2
                 val enemyBottom = ny + enemyHeightPx / 2
                 
-                val charLeft = characterX - characterWidthPx / 2
-                val charRight = characterX + characterWidthPx / 2
-                val charTop = characterY - characterHeightPx / 2
-                val charBottom = characterY + characterHeightPx / 2
+                val charLeft = characterX - characterHitboxWidthPx / 2
+                val charRight = characterX + characterHitboxWidthPx / 2
+                val charTop = characterY - characterHitboxHeightPx / 2
+                val charBottom = characterY + characterHitboxHeightPx / 2
 
                 if (enemyRight > charLeft && enemyLeft < charRight &&
                     enemyBottom > charTop && enemyTop < charBottom) {
@@ -150,14 +183,74 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 }
             }
             
-            hp = newHp
-            enemies = newEnemies
+                hp = newHp
+                enemies = newEnemies
+            }
             
             delay(16) // ~60 FPS
         }
     }
 
-    Box(modifier = modifier.fillMaxSize().background(Color(0xFFEEEEEE))) {
+    Box(modifier = modifier
+        .fillMaxSize()
+        .systemGestureExclusion()
+        .background(Color(0xFFEEEEEE))
+        .pointerInput(isPaused) {
+            if (isPaused) return@pointerInput
+            detectDragGestures(
+                onDragStart = { offset ->
+                    slashStart = offset
+                    slashEnd = offset
+                },
+                onDrag = { change, _ ->
+                    slashEnd = change.position
+                },
+                onDragEnd = {
+                    val start = slashStart
+                    val end = slashEnd
+                    if (start != null && end != null) {
+                        val dx = end.x - start.x
+                        val dy = end.y - start.y
+                        val distSq = dx*dx + dy*dy
+                        // Check if it's a drag line (distance > 50) to prevent single tap
+                        if (distSq > 2500f) {
+                            val l2 = distSq
+                            val remainingEnemies = enemies.filterNot { enemy ->
+                                var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / l2
+                                t = max(0f, min(1f, t))
+                                val projX = start.x + t * dx
+                                val projY = start.y + t * dy
+                                val distToEnemySq = (enemy.x - projX) * (enemy.x - projX) + (enemy.y - projY) * (enemy.y - projY)
+                                
+                                val hitRadius = enemyWidthPx / 2f
+                                distToEnemySq <= hitRadius * hitRadius
+                            }
+                            enemies = remainingEnemies
+                        }
+                    }
+                    slashStart = null
+                    slashEnd = null
+                },
+                onDragCancel = {
+                    slashStart = null
+                    slashEnd = null
+                }
+            )
+        }
+    ) {
+        
+        // Draw Slash Line
+        if (slashStart != null && slashEnd != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawLine(
+                    color = Color.Cyan.copy(alpha = 0.8f),
+                    start = slashStart!!,
+                    end = slashEnd!!,
+                    strokeWidth = 15f,
+                    cap = StrokeCap.Round
+                )
+            }
+        }
         
         // Spawn Zone Text Area
         Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
@@ -186,12 +279,19 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     x = with(density) { characterX.toDp() } - (characterWidthDp / 2),
                     y = with(density) { characterY.toDp() } - (characterHeightDp / 2)
                 )
+                .size(width = characterWidthDp, height = characterHeightDp),
+            contentAlignment = Alignment.Center
         ) {
              Image(
                  painter = painterResource(id = R.drawable.cat_character),
                  contentDescription = "Character",
+                 modifier = Modifier.fillMaxSize()
+             )
+             
+             // Hitbox border
+             Box(
                  modifier = Modifier
-                     .size(width = characterWidthDp, height = characterHeightDp)
+                     .size(hitboxchar)
                      .border(2.dp, if (isImmune) Color.Red else Color.Transparent)
              )
         }
@@ -254,6 +354,53 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         onClick = {
                             activity?.finish()
                         },
+                        modifier = Modifier.width(200.dp).height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text("Menu", fontSize = 20.sp)
+                    }
+                }
+            }
+        }
+
+        // Pause Button
+        if (hp > 0 && !isPaused) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                FloatingActionButton(
+                    onClick = { isPaused = true },
+                    containerColor = Color.White
+                ) {
+                    Text("II", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+            }
+        }
+
+        // Pause Menu
+        if (isPaused && hp > 0) {
+            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "PAUSED", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = { isPaused = false },
+                        modifier = Modifier.width(200.dp).height(50.dp)
+                    ) {
+                        Text("Resume", fontSize = 20.sp)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { activity?.finish() },
                         modifier = Modifier.width(200.dp).height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                     ) {
