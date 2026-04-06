@@ -76,7 +76,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 }
 
                 timeSinceLastSpawn += dt
-                if (timeSinceLastSpawn >= 2000) {
+                if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS) {
                     spawnCount++
                     enemies = enemies + Enemy.createRandomSpawn(
                         id = spawnCount, 

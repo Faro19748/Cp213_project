@@ -21,6 +21,8 @@ data class Enemy(
     var lastAttackTime: Long = 0L
 ) {
     companion object {
+        const val SPAWN_INTERVAL_MS = 2000L // ปรับอัตราการเกิด (มิลลิวินาที) เช่น 1000 = 1 วิ, 2000 = 2 วิ
+
         fun createRandomSpawn(id: Long, screenWidthPx: Float, screenHeightPx: Float, pixelDensity: Float): Enemy {
             val randType = Math.random()
             val type = when {
