@@ -64,6 +64,7 @@ data class Enemy(
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
     var hp by remember { mutableIntStateOf(100) }
+    var stamina by remember { mutableFloatStateOf(100f) }
     var enemies by remember { mutableStateOf(listOf<Enemy>()) }
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
     
@@ -110,6 +111,12 @@ fun GameScreen(modifier: Modifier = Modifier) {
             lastFrameTime = currentTime
 
             if (!isPaused) {
+                // Stamina recovery: 10 per 1 second -> 10 per 1000ms
+                if (stamina < 100f) {
+                    stamina += (dt * 10f) / 1000f
+                    if (stamina > 100f) stamina = 100f
+                }
+
                 timeSinceLastSpawn += dt
                 // Spawn enemy every 5 seconds
                 if (timeSinceLastSpawn >= 5000) {
@@ -199,11 +206,25 @@ fun GameScreen(modifier: Modifier = Modifier) {
             if (isPaused) return@pointerInput
             detectDragGestures(
                 onDragStart = { offset ->
-                    slashStart = offset
-                    slashEnd = offset
+                    if (stamina >= 5f) { // Require some minimum stamina to start slashing
+                        slashStart = offset
+                        slashEnd = offset
+                    } else {
+                        slashStart = null
+                        slashEnd = null
+                    }
                 },
-                onDrag = { change, _ ->
-                    slashEnd = change.position
+                onDrag = { change, dragAmount ->
+                    if (slashStart != null && slashEnd != null) {
+                        val distance = sqrt(dragAmount.x * dragAmount.x + dragAmount.y * dragAmount.y)
+                        val staminaCost = distance * 0.02f // Tune this factor for how fast it drains
+                        if (stamina >= staminaCost) {
+                            stamina -= staminaCost
+                            slashEnd = change.position
+                        } else {
+                            stamina = 0f
+                        }
+                    }
                 },
                 onDragEnd = {
                     val start = slashStart
@@ -239,24 +260,6 @@ fun GameScreen(modifier: Modifier = Modifier) {
         }
     ) {
         
-        // Draw Slash Line
-        if (slashStart != null && slashEnd != null) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawLine(
-                    color = Color.Cyan.copy(alpha = 0.8f),
-                    start = slashStart!!,
-                    end = slashEnd!!,
-                    strokeWidth = 15f,
-                    cap = StrokeCap.Round
-                )
-            }
-        }
-        
-        // Spawn Zone Text Area
-        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            Text("spawn zone", fontSize = 48.sp, color = Color.Red.copy(alpha = 0.5f), fontWeight = FontWeight.Light)
-        }
-
         // Enemies
         for (enemy in enemies) {
             Image(
@@ -296,7 +299,20 @@ fun GameScreen(modifier: Modifier = Modifier) {
              )
         }
         
-        // HP Bar
+        // Draw Slash Line (on top of enemies and character)
+        if (slashStart != null && slashEnd != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawLine(
+                    color = Color.Red.copy(alpha = 0.8f),
+                    start = slashStart!!,
+                    end = slashEnd!!,
+                    strokeWidth = 15f,
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+
+        // HP and Stamina Bar
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -324,7 +340,35 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "HP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                // Fixed width box so HP and SP bars align nicely
+                Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.Center) {
+                    Text(text = "HP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(20.dp)
+                        .border(1.dp, Color.Black)
+                        .background(Color.White)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(if (stamina > 0f) stamina / 100f else 0f)
+                            .fillMaxHeight()
+                            .background(Color.Blue.copy(alpha = 0.6f))
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.Center) {
+                    Text(text = "SP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Blue)
+                }
             }
         }
         
@@ -342,6 +386,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     Button(
                         onClick = {
                             hp = 100
+                            stamina = 100f
                             enemies = emptyList()
                             playerImmuneUntil = 0L
                         },
