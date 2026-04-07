@@ -45,16 +45,17 @@ fun GameScreen(modifier: Modifier = Modifier) {
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
 
-    val sizechar = 400.dp
+    val baseSizeDp = min(configuration.screenWidthDp, configuration.screenHeightDp).dp
+    val sizechar = baseSizeDp * 0.6f // 60% ของด้านที่แคบกว่า ทำให้ไม่เพี้ยนใน Tablet ยามสัดส่วนและขนาดเปลี่ยน
     val characterWidthDp = sizechar
     val characterHeightDp = sizechar
 
-    val hitboxchar = 200.dp
+    val hitboxchar = sizechar * 0.5f // Hitbox ลดลงตามสัดส่วนตัวละคร
     val characterHitboxWidthPx = with(density) { hitboxchar.toPx() }
     val characterHitboxHeightPx = with(density) { hitboxchar.toPx() }
     
     val characterX = screenWidthPx / 2f
-    val characterY = screenHeightPx - with(density) { 150.dp.toPx() }
+    val characterY = screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } // จัดตำแหน่งอิงตามขนาดตัวละคร ไม่ให้ล้นจอ
     
     var spawnCount by remember { mutableLongStateOf(0L) }
     var isPaused by remember { mutableStateOf(false) }
@@ -141,7 +142,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     Box(modifier = modifier
         .fillMaxSize()
         .systemGestureExclusion()
-        .background(Color(0xFFEEEEEE))
+        .background(Color(0xFFDCF0C3)) // Set background color to #DCF0C3 
         .pointerInput(isPaused) {
             if (isPaused) return@pointerInput
             detectDragGestures(

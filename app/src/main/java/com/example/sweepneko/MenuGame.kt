@@ -64,6 +64,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(Color(0xFFFFEDCE))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -85,7 +86,9 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             Image(
                 painter = painterResource(id = R.drawable.cat_character),
                 contentDescription = "Character",
-                modifier = Modifier.size(500.dp)
+                modifier = Modifier
+                    .fillMaxSize(0.8f) // ใช้ 80% ของพื้นที่ Box เพื่อให้ยืดหยุ่นตามหน้าจอ
+                    .aspectRatio(1f) // คุมสัดส่วนภาพไม่ให้บิดเบี้ยว
             )
         }
 
