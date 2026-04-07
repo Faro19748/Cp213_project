@@ -26,9 +26,9 @@ data class Enemy(
         fun createRandomSpawn(id: Long, screenWidthPx: Float, screenHeightPx: Float, pixelDensity: Float): Enemy {
             val randType = Math.random()
             val type = when {
-                randType < 0.6 -> EnemyType.NORMAL
-                randType < 0.8 -> EnemyType.FAST
-                else -> EnemyType.BIG
+                randType < 0.5 -> EnemyType.NORMAL // สุ่ม 0.0 - 0.49 = ตัวปกติเกิด 50%
+                randType < 0.8 -> EnemyType.FAST // สุ่ม 0.5 - 0.79 = ตัวเร็วเกิด 30%
+                else -> EnemyType.BIG // สุ่ม 0.8 - 1.0 = ตัวใหญ่เกิด 20%
             }
 
             val eWidthPx = type.widthDp * pixelDensity
