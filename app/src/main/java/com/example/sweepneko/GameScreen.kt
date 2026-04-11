@@ -14,7 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +30,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long)
+
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
     var hp by remember { mutableIntStateOf(100) }
@@ -37,6 +41,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     
     var slashStart by remember { mutableStateOf<Offset?>(null) }
     var slashEnd by remember { mutableStateOf<Offset?>(null) }
+    var fadingSlashes by remember { mutableStateOf(listOf<FadingSlash>()) }
     
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -60,8 +65,8 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var spawnCount by remember { mutableLongStateOf(0L) }
     var isPaused by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isPaused) {
-        if (isPaused) return@LaunchedEffect
+    LaunchedEffect(isPaused, hp > 0) {
+        if (isPaused || hp <= 0) return@LaunchedEffect
         var lastFrameTime = System.currentTimeMillis()
         var timeSinceLastSpawn = 0L
 
@@ -75,6 +80,8 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     stamina += (dt * 10f) / 1000f
                     if (stamina > 100f) stamina = 100f
                 }
+
+                fadingSlashes = fadingSlashes.filter { currentTime - it.startTime < 400 }
 
                 timeSinceLastSpawn += dt
                 if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS) {
@@ -167,6 +174,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         if (distSq > 2500f) {
                             val l2 = distSq
                             val currentTime = System.currentTimeMillis()
+                            fadingSlashes = fadingSlashes + FadingSlash(start, end, currentTime)
                             enemies = enemies.mapNotNull { enemy ->
                                 var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / l2
                                 t = max(0f, min(1f, t))
@@ -219,9 +227,66 @@ fun GameScreen(modifier: Modifier = Modifier) {
              Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
         }
         
-        if (slashStart != null && slashEnd != null) {
+        if (slashStart != null && slashEnd != null || fadingSlashes.isNotEmpty()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                drawLine(color = Color.Red.copy(alpha = 0.8f), start = slashStart!!, end = slashEnd!!, strokeWidth = 15f, cap = StrokeCap.Round)
+                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float ->
+                    val dx = end.x - start.x
+                    val dy = end.y - start.y
+                    val dist = sqrt(dx*dx + dy*dy)
+                    if (dist > 0) {
+                        val nx = -dy / dist
+                        val ny = dx / dist
+                        val midX = (start.x + end.x) / 2f
+                        val midY = (start.y + end.y) / 2f
+                        
+                        val outerDist = min(100f, dist * 0.12f)
+                        val innerDist = min(15f, dist * 0.02f)
+                        val coreDist = min(50f, dist * 0.06f)
+                        val strokeWidth = min(20f, max(5f, dist * 0.02f))
+
+                        val cpOuterX = midX + nx * outerDist
+                        val cpOuterY = midY + ny * outerDist
+                        val cpInnerX = midX + nx * innerDist
+                        val cpInnerY = midY + ny * innerDist
+                        
+                        val pathOuter = Path().apply {
+                            moveTo(start.x, start.y)
+                            quadraticBezierTo(cpOuterX, cpOuterY, end.x, end.y)
+                            quadraticBezierTo(cpInnerX, cpInnerY, start.x, start.y)
+                            close()
+                        }
+                        val coreCpX = midX + nx * coreDist
+                        val coreCpY = midY + ny * coreDist
+                        val pathCore = Path().apply {
+                            moveTo(start.x, start.y)
+                            quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
+                        }
+
+                        drawPath(
+                            path = pathOuter,
+                            color = Color(0xFF7AAEE0).copy(alpha = alphaOuter),
+                        )
+                        drawPath(
+                            path = pathCore,
+                            color = Color.White.copy(alpha = alphaInner),
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+                    }
+                }
+
+                if (slashStart != null && slashEnd != null) {
+                    drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f)
+                }
+                
+                val currentTime = System.currentTimeMillis()
+                fadingSlashes.forEach { slash ->
+                    val elapsed = currentTime - slash.startTime
+                    val progress = elapsed / 400f
+                    if (progress in 0f..1f) {
+                        val alpha = max(0f, 1f - progress)
+                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha)
+                    }
+                }
             }
         }
 
@@ -230,7 +295,16 @@ fun GameScreen(modifier: Modifier = Modifier) {
         
         if (hp <= 0) {
             GameOverMenu(
-                onRestart = { hp = 100; stamina = 100f; enemies = emptyList(); playerImmuneUntil = 0L },
+                onRestart = {
+                    hp = 100
+                    stamina = 100f
+                    enemies = emptyList()
+                    playerImmuneUntil = 0L
+                    spawnCount = 0L
+                    slashStart = null
+                    slashEnd = null
+                    fadingSlashes = emptyList()
+                },
                 onMenu = { activity?.finish() }
             )
         }
