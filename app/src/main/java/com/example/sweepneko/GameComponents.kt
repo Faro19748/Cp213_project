@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun HpStaminaBar(hp: Int, stamina: Float) {
+fun HpStaminaBar(hp: Int, stamina: Float, comboCount: Int, isNextSlashRed: Boolean) {
     Column(
         modifier = Modifier
             .padding(top = 16.dp)
@@ -58,6 +58,16 @@ fun HpStaminaBar(hp: Int, stamina: Float) {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "SP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Blue)
+        }
+        if (comboCount > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            val comboColor = if (isNextSlashRed) Color(0xFFE07A7A) else Color(0xFFFF9800)
+            Text(
+                text = "Combo: $comboCount", 
+                fontSize = 28.sp, 
+                fontWeight = FontWeight.Black, 
+                color = comboColor
+            )
         }
     }
 }

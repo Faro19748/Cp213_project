@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -30,14 +31,20 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
-data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long)
+data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, val isRed: Boolean = false)
+data class Projectile(val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
     var hp by remember { mutableIntStateOf(100) }
     var stamina by remember { mutableFloatStateOf(100f) }
     var enemies by remember { mutableStateOf(listOf<Enemy>()) }
+    var projectiles by remember { mutableStateOf(listOf<Projectile>()) }
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
+    
+    var comboCount by remember { mutableIntStateOf(0) }
+    var lastEnemyHitTime by remember { mutableLongStateOf(0L) }
+    var isNextSlashRed by remember { mutableStateOf(false) }
     
     var slashStart by remember { mutableStateOf<Offset?>(null) }
     var slashEnd by remember { mutableStateOf<Offset?>(null) }
@@ -59,16 +66,28 @@ fun GameScreen(modifier: Modifier = Modifier) {
     val characterHitboxWidthPx = with(density) { hitboxchar.toPx() }
     val characterHitboxHeightPx = with(density) { hitboxchar.toPx() }
     
+    val characterWidthPx = with(density) { characterWidthDp.toPx() }
+    val characterHeightPx = with(density) { characterHeightDp.toPx() }
+    
     val characterX = screenWidthPx / 2f
     val characterY = screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } // จัดตำแหน่งอิงตามขนาดตัวละคร ไม่ให้ล้นจอ
     
     var spawnCount by remember { mutableLongStateOf(0L) }
     var isPaused by remember { mutableStateOf(false) }
 
+    // Pre-load painters to prevent stuttering during state changes
+    val bulletPainter = painterResource(id = R.drawable.t_bullet)
+    val fastEnemyPainter = painterResource(id = R.drawable.t_fastenemy)
+    val bigEnemyPainter = painterResource(id = R.drawable.t_bigenemy)
+    val shootEnemyPainter = painterResource(id = R.drawable.t_shootenemy)
+    val normalEnemyPainter = painterResource(id = R.drawable.t_enemy)
+    val charPainter = painterResource(id = R.drawable.cat_character)
+
     LaunchedEffect(isPaused, hp > 0) {
         if (isPaused || hp <= 0) return@LaunchedEffect
         var lastFrameTime = System.currentTimeMillis()
         var timeSinceLastSpawn = 0L
+        var nextSwarmTime = System.currentTimeMillis() + 10000L
 
         while (hp > 0) {
             val currentTime = System.currentTimeMillis()
@@ -76,6 +95,11 @@ fun GameScreen(modifier: Modifier = Modifier) {
             lastFrameTime = currentTime
 
             if (!isPaused) {
+                if (comboCount > 0 && currentTime - lastEnemyHitTime > 3000L) {
+                    comboCount = 0
+                    isNextSlashRed = false
+                }
+
                 if (stamina < 100f && slashStart == null) {
                     stamina += (dt * 10f) / 1000f
                     if (stamina > 100f) stamina = 100f
@@ -94,8 +118,40 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     )
                     timeSinceLastSpawn = 0L
                 }
+                
+                // Swarm Logic
+                if (currentTime >= nextSwarmTime) {
+                    nextSwarmTime = currentTime + 10000L
+                    val epicenter = Enemy.createRandomSpawn(
+                        id = spawnCount, 
+                        screenWidthPx = screenWidthPx, 
+                        screenHeightPx = screenHeightPx, 
+                        pixelDensity = density.density
+                    )
+                    
+                    val swarmEnemies = (1..6).map { i ->
+                        spawnCount++
+                        epicenter.copy(
+                            id = spawnCount,
+                            x = epicenter.x + (Math.random().toFloat() - 0.5f) * 10f,
+                            y = epicenter.y + (Math.random().toFloat() - 0.5f) * 10f,
+                            type = EnemyType.FAST, 
+                            hp = EnemyType.FAST.initialHp, 
+                            speed = EnemyType.FAST.speed, 
+                            widthPx = EnemyType.FAST.widthDp * density.density, 
+                            heightPx = EnemyType.FAST.heightDp * density.density,
+                            widthDp = EnemyType.FAST.widthDp,
+                            heightDp = EnemyType.FAST.heightDp
+                        )
+                    }
+                    enemies = enemies + swarmEnemies
+                }
             
                 var newHp = hp
+                var frameImmuneUntil = playerImmuneUntil
+                val newProjectiles = projectiles.toMutableList()
+                val shooterStopDist = with(density) { 450.dp.toPx() }
+                
                 val newEnemies = enemies.map { enemy ->
                     val dx = characterX - enemy.x
                     val dy = characterY - enemy.y
@@ -103,7 +159,19 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     
                     var nx = enemy.x
                     var ny = enemy.y
-                    if (dist > 0) {
+                    var updatedLastAttackTime = enemy.lastAttackTime
+                    
+                    if (enemy.type == EnemyType.SHOOTING && dist <= shooterStopDist) {
+                        if (currentTime - enemy.lastAttackTime > 4000L) {
+                            updatedLastAttackTime = currentTime
+                            val projSpeed = 4f
+                            newProjectiles.add(Projectile(
+                                x = enemy.x, y = enemy.y,
+                                dx = if (dist > 0) (dx/dist) * projSpeed else 0f, 
+                                dy = if (dist > 0) (dy/dist) * projSpeed else 0f
+                            ))
+                        }
+                    } else if (dist > 0) {
                         nx += (dx/dist) * enemy.speed
                         ny += (dy/dist) * enemy.speed
                     }
@@ -117,12 +185,39 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     if (enemyRight > charLeft && enemyLeft < charRight &&
                         enemyBottom > charTop && enemyTop < charBottom) {
                         nx = enemy.x; ny = enemy.y
-                        if (currentTime > playerImmuneUntil) {
+                        if (currentTime > frameImmuneUntil) {
                             newHp -= 25
-                            playerImmuneUntil = currentTime + 3000L
+                            frameImmuneUntil = currentTime + 3000L
+                            playerImmuneUntil = frameImmuneUntil
+                            comboCount = 0
+                            isNextSlashRed = false
                         }
                     }
-                    enemy.copy(x = nx, y = ny)
+                    enemy.copy(x = nx, y = ny, lastAttackTime = updatedLastAttackTime)
+                }
+                
+                val remainingProjectiles = mutableListOf<Projectile>()
+                for (p in newProjectiles) {
+                    val pnx = p.x + p.dx
+                    val pny = p.y + p.dy
+                    
+                    val pRadius = with(density) { (p.widthDp / 2f).dp.toPx() }
+                    
+                    val charLeft = characterX - characterHitboxWidthPx / 2; val charRight = characterX + characterHitboxWidthPx / 2
+                    val charTop = characterY - characterHitboxHeightPx / 2; val charBottom = characterY + characterHitboxHeightPx / 2
+
+                    if (pnx + pRadius > charLeft && pnx - pRadius < charRight &&
+                        pny + pRadius > charTop && pny - pRadius < charBottom) {
+                        if (currentTime > frameImmuneUntil) {
+                            newHp -= 15
+                            frameImmuneUntil = currentTime + 3000L
+                            playerImmuneUntil = frameImmuneUntil
+                            comboCount = 0
+                            isNextSlashRed = false
+                        }
+                    } else if (pnx > -200f && pnx < screenWidthPx + 200f && pny > -200f && pny < screenHeightPx + 200f) {
+                        remainingProjectiles.add(p.copy(x = pnx, y = pny))
+                    }
                 }
                 
                 for (i in newEnemies.indices) {
@@ -141,6 +236,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 }
                 hp = newHp
                 enemies = newEnemies
+                projectiles = remainingProjectiles
             }
             delay(16)
         }
@@ -174,7 +270,23 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         if (distSq > 2500f) {
                             val l2 = distSq
                             val currentTime = System.currentTimeMillis()
-                            fadingSlashes = fadingSlashes + FadingSlash(start, end, currentTime)
+                            val wasRed = isNextSlashRed
+                            if (wasRed) {
+                                isNextSlashRed = false
+                            }
+                            fadingSlashes = fadingSlashes + FadingSlash(start, end, currentTime, wasRed)
+                            
+                            var enemiesHitInThisSlash = 0
+                            
+                            projectiles = projectiles.filterNot { p ->
+                                var t = ((p.x - start.x) * dx + (p.y - start.y) * dy) / l2
+                                t = max(0f, min(1f, t))
+                                val projX = start.x + t * dx; val projY = start.y + t * dy
+                                val distToProjSq = (p.x - projX) * (p.x - projX) + (p.y - projY) * (p.y - projY)
+                                val pRadius = with(density) { (p.widthDp / 2f).dp.toPx() }
+                                distToProjSq <= pRadius * pRadius * 4
+                            }
+                            
                             enemies = enemies.mapNotNull { enemy ->
                                 var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / l2
                                 t = max(0f, min(1f, t))
@@ -184,10 +296,25 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                 val hitRadius = enemy.widthPx / 2f
                                 if (distToEnemySq <= hitRadius * hitRadius) {
                                     if (currentTime - enemy.lastHitTime > 300) {
+                                        enemiesHitInThisSlash++
                                         val newEnemyHp = enemy.hp - 1
                                         if (newEnemyHp > 0) enemy.copy(hp = newEnemyHp, lastHitTime = currentTime) else null
                                     } else enemy
                                 } else enemy
+                            }
+                            
+                            if (enemiesHitInThisSlash > 0) {
+                                lastEnemyHitTime = currentTime
+                                for (i in 0 until enemiesHitInThisSlash) {
+                                    comboCount++
+                                    if (comboCount > 0 && comboCount % 10 == 0) {
+                                        isNextSlashRed = true
+                                    }
+                                }
+                                
+                                if (wasRed) {
+                                    stamina = min(100f, stamina + (10f * enemiesHitInThisSlash))
+                                }
                             }
                         }
                     }
@@ -197,19 +324,42 @@ fun GameScreen(modifier: Modifier = Modifier) {
             )
         }
     ) {
-        // Enemies
-        enemies.forEach { enemy ->
-            val painterId = when (enemy.type) {
-                EnemyType.FAST -> R.drawable.t_fastenemy
-                EnemyType.BIG -> R.drawable.t_bigenemy
-                else -> R.drawable.t_enemy
-            }
+        // Projectiles
+        projectiles.forEach { p ->
             Image(
-                painter = painterResource(id = painterId),
+                painter = bulletPainter,
                 contentDescription = null,
                 modifier = Modifier
-                    .offset(x = with(density) { enemy.x.toDp() } - (enemy.widthDp.dp / 2),
-                            y = with(density) { enemy.y.toDp() } - (enemy.heightDp.dp / 2))
+                    .offset {
+                        val pxW = density.density * p.widthDp
+                        val pxH = density.density * p.heightDp
+                        androidx.compose.ui.unit.IntOffset(
+                            (p.x - pxW / 2).toInt(),
+                            (p.y - pxH / 2).toInt()
+                        )
+                    }
+                    .size(width = p.widthDp.dp, height = p.heightDp.dp)
+            )
+        }
+
+        // Enemies
+        enemies.forEach { enemy ->
+            val painter = when (enemy.type) {
+                EnemyType.FAST -> fastEnemyPainter
+                EnemyType.BIG -> bigEnemyPainter
+                EnemyType.SHOOTING -> shootEnemyPainter
+                else -> normalEnemyPainter
+            }
+            Image(
+                painter = painter,
+                contentDescription = null,
+                modifier = Modifier
+                    .offset {
+                        androidx.compose.ui.unit.IntOffset(
+                            (enemy.x - enemy.widthPx / 2).toInt(),
+                            (enemy.y - enemy.heightPx / 2).toInt()
+                        )
+                    }
                     .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
             )
         }
@@ -218,18 +368,22 @@ fun GameScreen(modifier: Modifier = Modifier) {
         val isImmune = System.currentTimeMillis() < playerImmuneUntil
         Box(
             modifier = Modifier
-                .offset(x = with(density) { characterX.toDp() } - (characterWidthDp / 2),
-                        y = with(density) { characterY.toDp() } - (characterHeightDp / 2))
+                .offset {
+                    androidx.compose.ui.unit.IntOffset(
+                        (characterX - characterWidthPx / 2).toInt(),
+                        (characterY - characterHeightPx / 2).toInt()
+                    )
+                }
                 .size(width = characterWidthDp, height = characterHeightDp),
             contentAlignment = Alignment.Center
         ) {
-             Image(painter = painterResource(id = R.drawable.cat_character), contentDescription = null, modifier = Modifier.fillMaxSize())
+             Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
              Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
         }
         
         if (slashStart != null && slashEnd != null || fadingSlashes.isNotEmpty()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float ->
+                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float, isRed: Boolean ->
                     val dx = end.x - start.x
                     val dy = end.y - start.y
                     val dist = sqrt(dx*dx + dy*dy)
@@ -239,10 +393,11 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         val midX = (start.x + end.x) / 2f
                         val midY = (start.y + end.y) / 2f
                         
-                        val outerDist = min(100f, dist * 0.12f)
-                        val innerDist = min(15f, dist * 0.02f)
-                        val coreDist = min(50f, dist * 0.06f)
-                        val strokeWidth = min(20f, max(5f, dist * 0.02f))
+                        val multiplier = if (isRed) 1.8f else 1f
+                        val outerDist = min(150f, dist * 0.12f * multiplier)
+                        val innerDist = min(25f, dist * 0.02f * multiplier)
+                        val coreDist = min(80f, dist * 0.06f * multiplier)
+                        val strokeWidth = min(35f, max(5f, dist * 0.02f * multiplier))
 
                         val cpOuterX = midX + nx * outerDist
                         val cpOuterY = midY + ny * outerDist
@@ -262,20 +417,34 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
                         }
 
+                        val outerColor = if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
+                        
                         drawPath(
                             path = pathOuter,
-                            color = Color(0xFF7AAEE0).copy(alpha = alphaOuter),
+                            color = outerColor.copy(alpha = alphaOuter * if (isRed) 1.2f else 1f),
                         )
                         drawPath(
                             path = pathCore,
                             color = Color.White.copy(alpha = alphaInner),
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )
+                        
+                        if (isRed) {
+                            val innerGlowPath = Path().apply {
+                                moveTo(start.x, start.y)
+                                quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
+                            }
+                            drawPath(
+                                path = innerGlowPath,
+                                color = Color(0xFFFFD700).copy(alpha = alphaInner * 0.8f),
+                                style = Stroke(width = strokeWidth * 0.4f, cap = StrokeCap.Round)
+                            )
+                        }
                     }
                 }
 
                 if (slashStart != null && slashEnd != null) {
-                    drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f)
+                    drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f, isNextSlashRed)
                 }
                 
                 val currentTime = System.currentTimeMillis()
@@ -284,14 +453,14 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     val progress = elapsed / 400f
                     if (progress in 0f..1f) {
                         val alpha = max(0f, 1f - progress)
-                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha)
+                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha, slash.isRed)
                     }
                 }
             }
         }
 
         // ใช้ Component จากไฟล์ GameComponents.kt
-        HpStaminaBar(hp = hp, stamina = stamina)
+        HpStaminaBar(hp = hp, stamina = stamina, comboCount = comboCount, isNextSlashRed = isNextSlashRed)
         
         if (hp <= 0) {
             GameOverMenu(
@@ -304,6 +473,10 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     slashStart = null
                     slashEnd = null
                     fadingSlashes = emptyList()
+                    projectiles = emptyList()
+                    comboCount = 0
+                    lastEnemyHitTime = 0L
+                    isNextSlashRed = false
                 },
                 onMenu = { activity?.finish() }
             )
