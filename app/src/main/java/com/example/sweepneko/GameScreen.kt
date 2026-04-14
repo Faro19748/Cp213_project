@@ -31,7 +31,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
-data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, val isRed: Boolean = false)
+data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, val isRed: Boolean = false, val isGold: Boolean = false)
 data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 
 @Composable
@@ -42,6 +42,10 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var projectiles by remember { mutableStateOf(listOf<Projectile>()) }
     var projectileIdCounter by remember { mutableLongStateOf(0L) }
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
+    
+    var ultimateGauge by remember { mutableFloatStateOf(0f) }
+    var ultimateActivationTime by remember { mutableLongStateOf(0L) }
+    var isUltimateActive by remember { mutableStateOf(false) }
     
     var comboCount by remember { mutableIntStateOf(0) }
     var lastEnemyHitTime by remember { mutableLongStateOf(0L) }
@@ -284,30 +288,66 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             if (wasRed) {
                                 isNextSlashRed = false
                             }
-                            fadingSlashes = fadingSlashes + FadingSlash(start, end, currentTime, wasRed)
+                            
+                            val isUltSlash = isUltimateActive
+                            if (isUltSlash) {
+                                isUltimateActive = false // Consume ultimate buff
+                            }
+                            
+                            val slashesToApply = mutableListOf<Pair<Offset, Offset>>()
+                            slashesToApply.add(start to end)
+                            
+                            if (isUltSlash) {
+                                val angle = 0.6f
+                                val cosA = kotlin.math.cos(angle.toDouble()).toFloat()
+                                val sinA = kotlin.math.sin(angle.toDouble()).toFloat()
+                                
+                                val dx1 = dx * cosA - dy * sinA
+                                val dy1 = dx * sinA + dy * cosA
+                                
+                                val dx3 = dx * cosA + dy * sinA
+                                val dy3 = -dx * sinA + dy * cosA
+                                
+                                slashesToApply.add(start to Offset(start.x + dx1, start.y + dy1))
+                                slashesToApply.add(start to Offset(start.x + dx3, start.y + dy3))
+                            }
+
+                            fadingSlashes = fadingSlashes + slashesToApply.map { (s, e) ->
+                                FadingSlash(s, e, currentTime, isRed = wasRed, isGold = isUltSlash)
+                            }
                             
                             var enemiesHitInThisSlash = 0
                             
                             projectiles = projectiles.filterNot { p ->
-                                var t = ((p.x - start.x) * dx + (p.y - start.y) * dy) / l2
-                                t = max(0f, min(1f, t))
-                                val projX = start.x + t * dx; val projY = start.y + t * dy
-                                val distToProjSq = (p.x - projX) * (p.x - projX) + (p.y - projY) * (p.y - projY)
-                                val pRadius = with(density) { (p.widthDp / 2f).dp.toPx() }
-                                distToProjSq <= pRadius * pRadius * 4
+                                slashesToApply.any { (s, e) ->
+                                    val ddx = e.x - s.x; val ddy = e.y - s.y
+                                    val ll2 = ddx*ddx + ddy*ddy
+                                    var t = ((p.x - s.x) * ddx + (p.y - s.y) * ddy) / ll2
+                                    if (ll2 > 0) t = max(0f, min(1f, t)) else t = 0f
+                                    val projX = s.x + t * ddx; val projY = s.y + t * ddy
+                                    val distToProjSq = (p.x - projX) * (p.x - projX) + (p.y - projY) * (p.y - projY)
+                                    val pRadius = with(density) { (p.widthDp / 2f).dp.toPx() }
+                                    distToProjSq <= pRadius * pRadius * 4
+                                }
                             }
                             
                             enemies = enemies.mapNotNull { enemy ->
-                                var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / l2
-                                t = max(0f, min(1f, t))
-                                val projX = start.x + t * dx; val projY = start.y + t * dy
-                                val distToEnemySq = (enemy.x - projX) * (enemy.x - projX) + (enemy.y - projY) * (enemy.y - projY)
+                                val isHit = slashesToApply.any { (s, e) ->
+                                    val ddx = e.x - s.x; val ddy = e.y - s.y
+                                    val ll2 = ddx*ddx + ddy*ddy
+                                    var t = ((enemy.x - s.x) * ddx + (enemy.y - s.y) * ddy) / ll2
+                                    if (ll2 > 0) t = max(0f, min(1f, t)) else t = 0f
+                                    val projX = s.x + t * ddx; val projY = s.y + t * ddy
+                                    val distToEnemySq = (enemy.x - projX) * (enemy.x - projX) + (enemy.y - projY) * (enemy.y - projY)
+                                    val hitRadius = enemy.widthPx / 2f
+                                    distToEnemySq <= hitRadius * hitRadius
+                                }
                                 
-                                val hitRadius = enemy.widthPx / 2f
-                                if (distToEnemySq <= hitRadius * hitRadius) {
+                                if (isHit) {
                                     if (currentTime - enemy.lastHitTime > 300) {
                                         enemiesHitInThisSlash++
-                                        val newEnemyHp = enemy.hp - 1
+                                        val dmg = if (isUltSlash) 10 else 1
+                                        val newEnemyHp = enemy.hp - dmg
                                         if (newEnemyHp > 0) enemy.copy(hp = newEnemyHp, lastHitTime = currentTime) else null
                                     } else enemy
                                 } else enemy
@@ -321,6 +361,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                         isNextSlashRed = true
                                     }
                                 }
+                                ultimateGauge = min(100f, ultimateGauge + (5f * enemiesHitInThisSlash))
                                 
                                 if (wasRed) {
                                     stamina = min(100f, stamina + (20f * enemiesHitInThisSlash))
@@ -397,7 +438,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
         
         if (slashStart != null && slashEnd != null || fadingSlashes.isNotEmpty()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float, isRed: Boolean ->
+                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float, isRed: Boolean, isGold: Boolean ->
                     val dx = end.x - start.x
                     val dy = end.y - start.y
                     val dist = sqrt(dx*dx + dy*dy)
@@ -407,7 +448,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         val midX = (start.x + end.x) / 2f
                         val midY = (start.y + end.y) / 2f
                         
-                        val multiplier = if (isRed) 1.8f else 1f
+                        val multiplier = if (isGold) 2.2f else if (isRed) 1.8f else 1f
                         val outerDist = min(150f, dist * 0.12f * multiplier)
                         val innerDist = min(25f, dist * 0.02f * multiplier)
                         val coreDist = min(80f, dist * 0.06f * multiplier)
@@ -431,11 +472,12 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
                         }
 
-                        val outerColor = if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
+                        val outerColor = if (isGold) Color(0xFFFFD700) else if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
+                        val alphaMult = if (isGold) 1.5f else if (isRed) 1.2f else 1f
                         
                         drawPath(
                             path = pathOuter,
-                            color = outerColor.copy(alpha = alphaOuter * if (isRed) 1.2f else 1f),
+                            color = outerColor.copy(alpha = min(1f, alphaOuter * alphaMult)),
                         )
                         drawPath(
                             path = pathCore,
@@ -443,14 +485,15 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )
                         
-                        if (isRed) {
+                        if (isRed || isGold) {
                             val innerGlowPath = Path().apply {
                                 moveTo(start.x, start.y)
                                 quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
                             }
+                            val glowColor = if (isGold) Color.White else Color(0xFFFFD700)
                             drawPath(
                                 path = innerGlowPath,
-                                color = Color(0xFFFFD700).copy(alpha = alphaInner * 0.8f),
+                                color = glowColor.copy(alpha = alphaInner * 0.8f),
                                 style = Stroke(width = strokeWidth * 0.4f, cap = StrokeCap.Round)
                             )
                         }
@@ -458,7 +501,23 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 }
 
                 if (slashStart != null && slashEnd != null) {
-                    drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f, isNextSlashRed)
+                    if (isUltimateActive) {
+                        val dx = slashEnd!!.x - slashStart!!.x
+                        val dy = slashEnd!!.y - slashStart!!.y
+                        val angle = 0.6f
+                        val cosA = kotlin.math.cos(angle.toDouble()).toFloat()
+                        val sinA = kotlin.math.sin(angle.toDouble()).toFloat()
+                        val p1x = slashStart!!.x + (dx * cosA - dy * sinA)
+                        val p1y = slashStart!!.y + (dx * sinA + dy * cosA)
+                        val p2x = slashStart!!.x + (dx * cosA + dy * sinA)
+                        val p2y = slashStart!!.y + (-dx * sinA + dy * cosA)
+                        
+                        drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f, false, true)
+                        drawSlash(slashStart!!, Offset(p1x, p1y), 0.9f, 1f, false, true)
+                        drawSlash(slashStart!!, Offset(p2x, p2y), 0.9f, 1f, false, true)
+                    } else {
+                        drawSlash(slashStart!!, slashEnd!!, 0.9f, 1f, isNextSlashRed, false)
+                    }
                 }
                 
                 val currentTime = System.currentTimeMillis()
@@ -467,14 +526,14 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     val progress = elapsed / 400f
                     if (progress in 0f..1f) {
                         val alpha = max(0f, 1f - progress)
-                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha, slash.isRed)
+                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha, slash.isRed, slash.isGold)
                     }
                 }
             }
         }
 
         // ใช้ Component จากไฟล์ GameComponents.kt
-        HpStaminaBar(hp = hp, stamina = stamina, comboCount = comboCount, isNextSlashRed = isNextSlashRed)
+        HpStaminaBar(hp = hp, stamina = stamina, ultimateGauge = ultimateGauge, comboCount = comboCount, isNextSlashRed = isNextSlashRed)
         
         if (hp <= 0) {
             GameOverMenu(
@@ -491,14 +550,55 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     comboCount = 0
                     lastEnemyHitTime = 0L
                     isNextSlashRed = false
+                    ultimateGauge = 0f
+                    isUltimateActive = false
                 },
                 onMenu = { activity?.finish() }
             )
         }
 
         if (hp > 0 && !isPaused) {
-            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomEnd) {
-                FloatingActionButton(onClick = { isPaused = true }, containerColor = Color.White) {
+            Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Box(
+                    modifier = Modifier.align(Alignment.BottomStart),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        progress = { ultimateGauge / 100f },
+                        modifier = Modifier.size(64.dp),
+                        color = Color(0xFFFFD700),
+                        strokeWidth = 4.dp,
+                        trackColor = Color.Gray.copy(alpha = 0.5f)
+                    )
+                    FloatingActionButton(
+                        onClick = { 
+                            if (!isUltimateActive && ultimateGauge >= 100f) {
+                                isUltimateActive = true
+                                ultimateActivationTime = System.currentTimeMillis()
+                                ultimateGauge = 0f
+                                
+                                // Grant Ultimate 3-Slash Buff & Restore SP 50%
+                                stamina = min(100f, stamina + 50f)
+                            }
+                        }, 
+                        containerColor = if (ultimateGauge >= 100f) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.DarkGray.copy(alpha = 0.7f),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Text(
+                            "ULT", 
+                            fontSize = 16.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = if (ultimateGauge >= 100f) Color.Black else Color.LightGray
+                        )
+                    }
+                }
+                
+                FloatingActionButton(
+                    onClick = { isPaused = true }, 
+                    containerColor = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                ) {
                     Text("II", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
             }

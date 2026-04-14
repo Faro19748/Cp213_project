@@ -11,9 +11,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
-fun HpStaminaBar(hp: Int, stamina: Float, comboCount: Int, isNextSlashRed: Boolean) {
+fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int, isNextSlashRed: Boolean) {
     Column(
         modifier = Modifier
             .padding(top = 16.dp)
@@ -26,7 +28,8 @@ fun HpStaminaBar(hp: Int, stamina: Float, comboCount: Int, isNextSlashRed: Boole
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(30.dp)
-                    .border(1.dp, Color.Black)
+                    .border(1.dp, Color.Black, RoundedCornerShape(percent = 50))
+                    .clip(RoundedCornerShape(percent = 50))
                     .background(Color.White)
             ) {
                 Box(
@@ -46,7 +49,8 @@ fun HpStaminaBar(hp: Int, stamina: Float, comboCount: Int, isNextSlashRed: Boole
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(20.dp)
-                    .border(1.dp, Color.Black)
+                    .border(1.dp, Color.Black, RoundedCornerShape(percent = 50))
+                    .clip(RoundedCornerShape(percent = 50))
                     .background(Color.White)
             ) {
                 Box(
