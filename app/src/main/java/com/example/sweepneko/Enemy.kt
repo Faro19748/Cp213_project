@@ -24,13 +24,18 @@ data class Enemy(
     companion object {
         const val SPAWN_INTERVAL_MS = 2000L // ปรับอัตราการเกิด (มิลลิวินาที) เช่น 1000 = 1 วิ, 2000 = 2 วิ
 
-        fun createRandomSpawn(id: Long, screenWidthPx: Float, screenHeightPx: Float, pixelDensity: Float): Enemy {
+        fun createRandomSpawn(id: Long, screenWidthPx: Float, screenHeightPx: Float, pixelDensity: Float, currentEnemies: List<Enemy> = emptyList()): Enemy {
             val randType = Math.random()
-            val type = when {
+            var type = when {
                 randType < 0.3 -> EnemyType.SHOOTING // โอกาสเกิด 30%
                 randType < 0.6 -> EnemyType.NORMAL // โอกาสเกิด 30%
                 randType < 0.85 -> EnemyType.FAST // โอกาสเกิด 25%
                 else -> EnemyType.BIG // โอกาสเกิด 15%
+            }
+
+            // จำกัดการเกิดของ SHOOTING enemy สูงสุด 3 ตัว
+            if (type == EnemyType.SHOOTING && currentEnemies.count { it.type == EnemyType.SHOOTING } >= 3) {
+                type = EnemyType.NORMAL
             }
 
             val eWidthPx = type.widthDp * pixelDensity

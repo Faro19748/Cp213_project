@@ -32,7 +32,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, val isRed: Boolean = false)
-data class Projectile(val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
+data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
@@ -40,6 +40,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var stamina by remember { mutableFloatStateOf(100f) }
     var enemies by remember { mutableStateOf(listOf<Enemy>()) }
     var projectiles by remember { mutableStateOf(listOf<Projectile>()) }
+    var projectileIdCounter by remember { mutableLongStateOf(0L) }
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
     
     var comboCount by remember { mutableIntStateOf(0) }
@@ -114,7 +115,8 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         id = spawnCount, 
                         screenWidthPx = screenWidthPx, 
                         screenHeightPx = screenHeightPx, 
-                        pixelDensity = density.density
+                        pixelDensity = density.density,
+                        currentEnemies = enemies
                     )
                     timeSinceLastSpawn = 0L
                 }
@@ -126,7 +128,8 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         id = spawnCount, 
                         screenWidthPx = screenWidthPx, 
                         screenHeightPx = screenHeightPx, 
-                        pixelDensity = density.density
+                        pixelDensity = density.density,
+                        currentEnemies = enemies
                     )
                     
                     val swarmEnemies = (1..6).map { i ->
@@ -161,11 +164,18 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     var ny = enemy.y
                     var updatedLastAttackTime = enemy.lastAttackTime
                     
-                    if (enemy.type == EnemyType.SHOOTING && dist <= shooterStopDist) {
+                    val isInsideScreen = enemy.x >= enemy.widthPx / 2f && 
+                                         enemy.x <= screenWidthPx - enemy.widthPx / 2f && 
+                                         enemy.y >= enemy.heightPx / 2f && 
+                                         enemy.y <= screenHeightPx - enemy.heightPx / 2f
+                    
+                    if (enemy.type == EnemyType.SHOOTING && dist <= shooterStopDist && isInsideScreen) {
                         if (currentTime - enemy.lastAttackTime > 4000L) {
-                            updatedLastAttackTime = currentTime
+                                updatedLastAttackTime = currentTime
                             val projSpeed = 4f
+                            projectileIdCounter++
                             newProjectiles.add(Projectile(
+                                id = projectileIdCounter,
                                 x = enemy.x, y = enemy.y,
                                 dx = if (dist > 0) (dx/dist) * projSpeed else 0f, 
                                 dy = if (dist > 0) (dy/dist) * projSpeed else 0f
@@ -313,7 +323,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                 }
                                 
                                 if (wasRed) {
-                                    stamina = min(100f, stamina + (10f * enemiesHitInThisSlash))
+                                    stamina = min(100f, stamina + (20f * enemiesHitInThisSlash))
                                 }
                             }
                         }
@@ -326,42 +336,46 @@ fun GameScreen(modifier: Modifier = Modifier) {
     ) {
         // Projectiles
         projectiles.forEach { p ->
-            Image(
-                painter = bulletPainter,
-                contentDescription = null,
-                modifier = Modifier
-                    .offset {
-                        val pxW = density.density * p.widthDp
-                        val pxH = density.density * p.heightDp
-                        androidx.compose.ui.unit.IntOffset(
-                            (p.x - pxW / 2).toInt(),
-                            (p.y - pxH / 2).toInt()
-                        )
-                    }
-                    .size(width = p.widthDp.dp, height = p.heightDp.dp)
-            )
+            key(p.id) {
+                Image(
+                    painter = bulletPainter,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .offset {
+                            val pxW = density.density * p.widthDp
+                            val pxH = density.density * p.heightDp
+                            androidx.compose.ui.unit.IntOffset(
+                                (p.x - pxW / 2).toInt(),
+                                (p.y - pxH / 2).toInt()
+                            )
+                        }
+                        .size(width = p.widthDp.dp, height = p.heightDp.dp)
+                )
+            }
         }
 
         // Enemies
         enemies.forEach { enemy ->
-            val painter = when (enemy.type) {
-                EnemyType.FAST -> fastEnemyPainter
-                EnemyType.BIG -> bigEnemyPainter
-                EnemyType.SHOOTING -> shootEnemyPainter
-                else -> normalEnemyPainter
+            key(enemy.id) {
+                val painter = when (enemy.type) {
+                    EnemyType.FAST -> fastEnemyPainter
+                    EnemyType.BIG -> bigEnemyPainter
+                    EnemyType.SHOOTING -> shootEnemyPainter
+                    else -> normalEnemyPainter
+                }
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .offset {
+                            androidx.compose.ui.unit.IntOffset(
+                                (enemy.x - enemy.widthPx / 2).toInt(),
+                                (enemy.y - enemy.heightPx / 2).toInt()
+                            )
+                        }
+                        .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
+                )
             }
-            Image(
-                painter = painter,
-                contentDescription = null,
-                modifier = Modifier
-                    .offset {
-                        androidx.compose.ui.unit.IntOffset(
-                            (enemy.x - enemy.widthPx / 2).toInt(),
-                            (enemy.y - enemy.heightPx / 2).toInt()
-                        )
-                    }
-                    .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
-            )
         }
         
         // Character
