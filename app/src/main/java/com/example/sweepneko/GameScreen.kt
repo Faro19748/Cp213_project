@@ -1,6 +1,6 @@
 package com.example.sweepneko
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -44,7 +43,6 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var playerImmuneUntil by remember { mutableLongStateOf(0L) }
     
     var ultimateGauge by remember { mutableFloatStateOf(0f) }
-    var ultimateActivationTime by remember { mutableLongStateOf(0L) }
     var isUltimateActive by remember { mutableStateOf(false) }
     
     var comboCount by remember { mutableIntStateOf(0) }
@@ -57,7 +55,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
@@ -136,7 +134,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         currentEnemies = enemies
                     )
                     
-                    val swarmEnemies = (1..6).map { i ->
+                    val swarmEnemies = (1..6).map { _ ->
                         spawnCount++
                         epicenter.copy(
                             id = spawnCount,
@@ -282,7 +280,6 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         val dx = end.x - start.x; val dy = end.y - start.y
                         val distSq = dx*dx + dy*dy
                         if (distSq > 2500f) {
-                            val l2 = distSq
                             val currentTime = System.currentTimeMillis()
                             val wasRed = isNextSlashRed
                             if (wasRed) {
@@ -323,7 +320,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                     val ddx = e.x - s.x; val ddy = e.y - s.y
                                     val ll2 = ddx*ddx + ddy*ddy
                                     var t = ((p.x - s.x) * ddx + (p.y - s.y) * ddy) / ll2
-                                    if (ll2 > 0) t = max(0f, min(1f, t)) else t = 0f
+                                    t = if (ll2 > 0) max(0f, min(1f, t)) else 0f
                                     val projX = s.x + t * ddx; val projY = s.y + t * ddy
                                     val distToProjSq = (p.x - projX) * (p.x - projX) + (p.y - projY) * (p.y - projY)
                                     val pRadius = with(density) { (p.widthDp / 2f).dp.toPx() }
@@ -336,7 +333,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                     val ddx = e.x - s.x; val ddy = e.y - s.y
                                     val ll2 = ddx*ddx + ddy*ddy
                                     var t = ((enemy.x - s.x) * ddx + (enemy.y - s.y) * ddy) / ll2
-                                    if (ll2 > 0) t = max(0f, min(1f, t)) else t = 0f
+                                    t = if (ll2 > 0) max(0f, min(1f, t)) else 0f
                                     val projX = s.x + t * ddx; val projY = s.y + t * ddy
                                     val distToEnemySq = (enemy.x - projX) * (enemy.x - projX) + (enemy.y - projY) * (enemy.y - projY)
                                     val hitRadius = enemy.widthPx / 2f
@@ -355,7 +352,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             
                             if (enemiesHitInThisSlash > 0) {
                                 lastEnemyHitTime = currentTime
-                                for (i in 0 until enemiesHitInThisSlash) {
+                                repeat(enemiesHitInThisSlash) {
                                     comboCount++
                                     if (comboCount > 0 && comboCount % 10 == 0) {
                                         isNextSlashRed = true
@@ -461,15 +458,15 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         
                         val pathOuter = Path().apply {
                             moveTo(start.x, start.y)
-                            quadraticBezierTo(cpOuterX, cpOuterY, end.x, end.y)
-                            quadraticBezierTo(cpInnerX, cpInnerY, start.x, start.y)
+                            quadraticTo(cpOuterX, cpOuterY, end.x, end.y)
+                            quadraticTo(cpInnerX, cpInnerY, start.x, start.y)
                             close()
                         }
                         val coreCpX = midX + nx * coreDist
                         val coreCpY = midY + ny * coreDist
                         val pathCore = Path().apply {
                             moveTo(start.x, start.y)
-                            quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
+                            quadraticTo(coreCpX, coreCpY, end.x, end.y)
                         }
 
                         val outerColor = if (isGold) Color(0xFFFFD700) else if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
@@ -488,7 +485,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         if (isRed || isGold) {
                             val innerGlowPath = Path().apply {
                                 moveTo(start.x, start.y)
-                                quadraticBezierTo(coreCpX, coreCpY, end.x, end.y)
+                                quadraticTo(coreCpX, coreCpY, end.x, end.y)
                             }
                             val glowColor = if (isGold) Color.White else Color(0xFFFFD700)
                             drawPath(
@@ -574,7 +571,6 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         onClick = { 
                             if (!isUltimateActive && ultimateGauge >= 100f) {
                                 isUltimateActive = true
-                                ultimateActivationTime = System.currentTimeMillis()
                                 ultimateGauge = 0f
                                 
                                 // Grant Ultimate 3-Slash Buff & Restore SP 50%

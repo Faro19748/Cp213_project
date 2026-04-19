@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +24,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.sweepneko.ui.theme.SweepNekoTheme
+
+import android.os.Build.VERSION.SDK_INT
+import coil.ImageLoader
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
 
 class MenuGame : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +57,19 @@ class MenuGame : ComponentActivity() {
 fun GameMenuScreen(modifier: Modifier = Modifier) {
     var showExitDialog by remember { mutableStateOf(false) }
     val activity = (LocalContext.current as? Activity)
+    val context = LocalContext.current
+
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .components {
+                if (SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .build()
+    }
 
     if (showExitDialog) {
         AlertDialog(
@@ -94,18 +115,26 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(id = R.drawable.cat_character),
+                painter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(context)
+                        .data(R.drawable.cat_char)
+                        .size(coil.size.Size.ORIGINAL)
+                        .build(),
+                    imageLoader = imageLoader
+                ),
                 contentDescription = "Character",
                 modifier = Modifier
-                    .fillMaxSize(0.8f) // ใช้ 80% ของพื้นที่ Box เพื่อให้ยืดหยุ่นตามหน้าจอ
+                    .fillMaxSize(1f) // เต็มพื้นที่อ้างอิง Box
                     .aspectRatio(1f) // คุมสัดส่วนภาพไม่ให้บิดเบี้ยว
+                    .scale(1.4f) // สเกลขยายขนาดเกิน Box โดยไม่เบียดองค์ประกอบอื่น
             )
         }
 
         // Buttons
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.offset(y = (-40).dp)
         ) {
             // 3. Play Button
             Button(

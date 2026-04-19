@@ -13,66 +13,215 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 
 @Composable
 fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int, isNextSlashRed: Boolean) {
     Column(
         modifier = Modifier
-            .padding(top = 16.dp)
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        // HP Bar
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(30.dp)
-                    .border(1.dp, Color.Black, RoundedCornerShape(percent = 50))
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(Color.White)
-            ) {
-                Box(
+        // HP Bar Row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            Box(contentAlignment = Alignment.CenterStart) {
+                CustomBar(
+                    progress = hp / 100f,
+                    barColor = Color(0xFFE53935),
+                    bgColor = Color(0xFF424242),
+                    borderColor = Color(0xFFEEEEEE),
+                    isHexagon = false,
                     modifier = Modifier
-                        .fillMaxWidth(if (hp > 0) hp / 100f else 0f)
-                        .fillMaxHeight()
-                        .background(Color.Red.copy(alpha = 0.6f))
+                        .fillMaxWidth()
+                        .height(32.dp)
+                        .padding(start = 28.dp)
+                )
+                
+                // Heart Icon background for slight shadow effect
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = "HP Shadow",
+                    tint = Color.Black.copy(alpha = 0.3f),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .offset(x = (-2).dp, y = 2.dp)
+                )
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = "HP",
+                    tint = Color(0xFFFF4842),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .offset(x = (-4).dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "HP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Red)
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        // SP Bar
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(20.dp)
-                    .border(1.dp, Color.Black, RoundedCornerShape(percent = 50))
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(Color.White)
-            ) {
-                Box(
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // SP Bar Row (Stamina)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(0.7f)
+        ) {
+            Box(contentAlignment = Alignment.CenterStart) {
+                CustomBar(
+                    progress = stamina / 100f,
+                    barColor = Color(0xFFFFCA28), // Electric Yellow
+                    bgColor = Color(0xFF424242),
+                    borderColor = Color(0xFFEEEEEE),
+                    isHexagon = true,
                     modifier = Modifier
-                        .fillMaxWidth(if (stamina > 0f) stamina / 100f else 0f)
-                        .fillMaxHeight()
-                        .background(Color.Blue.copy(alpha = 0.6f))
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .padding(start = 28.dp)
+                )
+                
+                LightningIcon(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .offset(x = (-6).dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "SP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Blue)
         }
+        
         if (comboCount > 0) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             val comboColor = if (isNextSlashRed) Color(0xFFE07A7A) else Color(0xFFFF9800)
             Text(
                 text = "Combo: $comboCount", 
                 fontSize = 28.sp, 
                 fontWeight = FontWeight.Black, 
-                color = comboColor
+                color = comboColor,
+                modifier = Modifier.padding(start = 16.dp)
             )
         }
+    }
+}
+
+@Composable
+fun LightningIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        
+        // Shadow for depth
+        val shadowPath = Path().apply {
+            moveTo(w * 0.65f + 3f, 2f)
+            lineTo(w * 0.25f + 3f, h * 0.55f + 2f)
+            lineTo(w * 0.5f + 3f, h * 0.55f + 2f)
+            lineTo(w * 0.3f + 3f, h + 2f)
+            lineTo(w * 0.85f + 3f, h * 0.4f + 2f)
+            lineTo(w * 0.55f + 3f, h * 0.4f + 2f)
+            close()
+        }
+        drawPath(shadowPath, color = Color.Black.copy(alpha = 0.3f))
+        
+        // Base Bolt (Vibrant Yellow)
+        val boltPath = Path().apply {
+            moveTo(w * 0.65f, 0f)
+            lineTo(w * 0.25f, h * 0.55f)
+            lineTo(w * 0.5f, h * 0.55f)
+            lineTo(w * 0.3f, h)
+            lineTo(w * 0.85f, h * 0.4f)
+            lineTo(w * 0.55f, h * 0.4f)
+            close()
+        }
+        drawPath(boltPath, color = Color(0xFFFFEB3B)) // Bright Yellow
+        
+        // Inner Shader for 3D effect
+        val innerPath = Path().apply {
+            moveTo(w * 0.65f, h * 0.05f)
+            lineTo(w * 0.35f, h * 0.5f)
+            lineTo(w * 0.5f, h * 0.5f)
+            lineTo(w * 0.4f, h * 0.8f)
+            lineTo(w * 0.75f, h * 0.45f)
+            lineTo(w * 0.55f, h * 0.45f)
+            close()
+        }
+        drawPath(innerPath, color = Color(0xFFFFF59D)) // Light Yellow
+        
+        // Border outline
+        drawPath(
+            boltPath, 
+            color = Color(0xFFF57F17), // Orange/Gold border
+            style = Stroke(width = 3f, join = androidx.compose.ui.graphics.StrokeJoin.Miter)
+        )
+    }
+}
+
+@Composable
+fun CustomBar(
+    progress: Float,
+    barColor: Color,
+    bgColor: Color,
+    borderColor: Color,
+    isHexagon: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val s = if (isHexagon) h / 2f else h / 1.5f
+        
+        val bgPath = Path().apply {
+            if (isHexagon) {
+                moveTo(s, 0f)
+                lineTo(w - s, 0f)
+                lineTo(w, h / 2f)
+                lineTo(w - s, h)
+                lineTo(s, h)
+                lineTo(0f, h / 2f)
+                close()
+            } else {
+                moveTo(0f, 0f)
+                lineTo(w - s, 0f)
+                lineTo(w, h)
+                lineTo(0f, h)
+                close()
+            }
+        }
+        
+        drawPath(path = bgPath, color = bgColor)
+        
+        val minWidth = if (isHexagon) s * 2 else s
+        val safeProgress = progress.coerceIn(0f, 1f)
+        val currentW = minWidth + (w - minWidth) * safeProgress
+        
+        if (safeProgress > 0f) {
+            val fgPath = Path().apply {
+                if (isHexagon) {
+                    moveTo(s, 0f)
+                    lineTo(currentW - s, 0f)
+                    lineTo(currentW, h / 2f)
+                    lineTo(currentW - s, h)
+                    lineTo(s, h)
+                    lineTo(0f, h / 2f)
+                    close()
+                } else {
+                    moveTo(0f, 0f)
+                    lineTo(currentW - s, 0f)
+                    lineTo(currentW, h)
+                    lineTo(0f, h)
+                    close()
+                }
+            }
+            drawPath(path = fgPath, color = barColor)
+        }
+        
+        drawPath(
+            path = bgPath,
+            color = borderColor,
+            style = Stroke(width = 6f, join = androidx.compose.ui.graphics.StrokeJoin.Bevel)
+        )
     }
 }
 
