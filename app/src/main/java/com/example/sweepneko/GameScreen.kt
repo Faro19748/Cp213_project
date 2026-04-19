@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -406,11 +407,23 @@ fun GameScreen(modifier: Modifier = Modifier) {
             )
         }
     ) {
+        // PRELOADERS: Invisible to force Coil to decode GIFs into memory cache immediately
+        Box(modifier = Modifier.size(1.dp).alpha(0.01f)) {
+            Image(painter = bulletPainter, contentDescription = null)
+            Image(painter = fastEnemyPainter, contentDescription = null)
+            Image(painter = bigEnemyPainter, contentDescription = null)
+            Image(painter = shootEnemyMovePainter, contentDescription = null)
+            Image(painter = shootEnemyIdlePainter, contentDescription = null)
+            Image(painter = normalEnemyPainter, contentDescription = null)
+            Image(painter = charPainter, contentDescription = null)
+        }
+        
         // Projectiles
         projectiles.forEach { p ->
             key(p.id) {
+                val localBulletPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.bullet).build(), imageLoader = imageLoader)
                 Image(
-                    painter = bulletPainter,
+                    painter = localBulletPainter,
                     contentDescription = null,
                     modifier = Modifier
                         .offset {
@@ -439,14 +452,20 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                      enemy.y <= screenHeightPx - enemy.heightPx / 2f
                 val isMoving = !(enemy.type == EnemyType.SHOOTING && dist <= shooterStopDistDraw && isInsideScreen)
                                      
-                val painter = when (enemy.type) {
-                    EnemyType.FAST -> fastEnemyPainter
-                    EnemyType.BIG -> bigEnemyPainter
-                    EnemyType.SHOOTING -> if (isMoving) shootEnemyMovePainter else shootEnemyIdlePainter
-                    else -> normalEnemyPainter
-                }
+                val localPainter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(context).data(
+                        when (enemy.type) {
+                            EnemyType.FAST -> R.drawable.sm_enemy
+                            EnemyType.BIG -> R.drawable.b_enemy
+                            EnemyType.SHOOTING -> if (isMoving) R.drawable.s_enemy else R.drawable.ss_enemy
+                            else -> R.drawable.n_enemy
+                        }
+                    ).build(),
+                    imageLoader = imageLoader
+                )
+                
                 Image(
-                    painter = painter,
+                    painter = localPainter,
                     contentDescription = null,
                     modifier = Modifier
                         .offset {
