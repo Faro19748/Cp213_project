@@ -30,8 +30,16 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+import android.os.Build.VERSION.SDK_INT
+import coil.ImageLoader
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
+
 data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, val isRed: Boolean = false, val isGold: Boolean = false)
 data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
+data class FadingEnemy(val enemy: Enemy, val deathTime: Long)
 
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
@@ -52,10 +60,12 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var slashStart by remember { mutableStateOf<Offset?>(null) }
     var slashEnd by remember { mutableStateOf<Offset?>(null) }
     var fadingSlashes by remember { mutableStateOf(listOf<FadingSlash>()) }
+    var fadingEnemies by remember { mutableStateOf(listOf<FadingEnemy>()) }
     
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val activity = LocalActivity.current
+    val context = LocalContext.current
     
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
@@ -78,13 +88,31 @@ fun GameScreen(modifier: Modifier = Modifier) {
     var spawnCount by remember { mutableLongStateOf(0L) }
     var isPaused by remember { mutableStateOf(false) }
 
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .components {
+                if (SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .build()
+    }
+
     // Pre-load painters to prevent stuttering during state changes
-    val bulletPainter = painterResource(id = R.drawable.t_bullet)
-    val fastEnemyPainter = painterResource(id = R.drawable.t_fastenemy)
-    val bigEnemyPainter = painterResource(id = R.drawable.t_bigenemy)
-    val shootEnemyPainter = painterResource(id = R.drawable.t_shootenemy)
-    val normalEnemyPainter = painterResource(id = R.drawable.t_enemy)
-    val charPainter = painterResource(id = R.drawable.cat_character)
+    val bulletPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.bullet).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val fastEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.sm_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val bigEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.b_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val shootEnemyMovePainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.s_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val shootEnemyIdlePainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.ss_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val normalEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.n_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    val charPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.b_cat).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+
+    val deadFastPainter = painterResource(id = R.drawable.d_sm_enemy)
+    val deadBigPainter = painterResource(id = R.drawable.d_b_enemy)
+    val deadShootPainter = painterResource(id = R.drawable.d_s_enemy)
+    val deadNormalPainter = painterResource(id = R.drawable.d_n_enemy)
 
     LaunchedEffect(isPaused, hp > 0) {
         if (isPaused || hp <= 0) return@LaunchedEffect
@@ -109,6 +137,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                 }
 
                 fadingSlashes = fadingSlashes.filter { currentTime - it.startTime < 400 }
+                fadingEnemies = fadingEnemies.filter { currentTime - it.deathTime < 1000 }
 
                 timeSinceLastSpawn += dt
                 if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS) {
@@ -345,7 +374,12 @@ fun GameScreen(modifier: Modifier = Modifier) {
                                         enemiesHitInThisSlash++
                                         val dmg = if (isUltSlash) 10 else 1
                                         val newEnemyHp = enemy.hp - dmg
-                                        if (newEnemyHp > 0) enemy.copy(hp = newEnemyHp, lastHitTime = currentTime) else null
+                                        if (newEnemyHp > 0) {
+                                            enemy.copy(hp = newEnemyHp, lastHitTime = currentTime)
+                                        } else {
+                                            fadingEnemies = fadingEnemies + FadingEnemy(enemy, currentTime)
+                                            null
+                                        }
                                     } else enemy
                                 } else enemy
                             }
@@ -393,12 +427,22 @@ fun GameScreen(modifier: Modifier = Modifier) {
         }
 
         // Enemies
+        val shooterStopDistDraw = with(density) { 450.dp.toPx() }
         enemies.forEach { enemy ->
             key(enemy.id) {
+                val dx = characterX - enemy.x
+                val dy = characterY - enemy.y
+                val dist = sqrt((dx*dx + dy*dy).toDouble()).toFloat()
+                val isInsideScreen = enemy.x >= enemy.widthPx / 2f && 
+                                     enemy.x <= screenWidthPx - enemy.widthPx / 2f && 
+                                     enemy.y >= enemy.heightPx / 2f && 
+                                     enemy.y <= screenHeightPx - enemy.heightPx / 2f
+                val isMoving = !(enemy.type == EnemyType.SHOOTING && dist <= shooterStopDistDraw && isInsideScreen)
+                                     
                 val painter = when (enemy.type) {
                     EnemyType.FAST -> fastEnemyPainter
                     EnemyType.BIG -> bigEnemyPainter
-                    EnemyType.SHOOTING -> shootEnemyPainter
+                    EnemyType.SHOOTING -> if (isMoving) shootEnemyMovePainter else shootEnemyIdlePainter
                     else -> normalEnemyPainter
                 }
                 Image(
@@ -412,6 +456,33 @@ fun GameScreen(modifier: Modifier = Modifier) {
                             )
                         }
                         .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
+                )
+            }
+        }
+        
+        // Fading (Dead) Enemies
+        val currentTimeRender = System.currentTimeMillis()
+        fadingEnemies.forEach { fading ->
+            key("dead_${fading.enemy.id}") {
+                val alpha = max(0f, 1f - (currentTimeRender - fading.deathTime) / 1000f)
+                val painter = when (fading.enemy.type) {
+                    EnemyType.FAST -> deadFastPainter
+                    EnemyType.BIG -> deadBigPainter
+                    EnemyType.SHOOTING -> deadShootPainter
+                    else -> deadNormalPainter
+                }
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    alpha = alpha,
+                    modifier = Modifier
+                        .offset {
+                            androidx.compose.ui.unit.IntOffset(
+                                (fading.enemy.x - fading.enemy.widthPx / 2).toInt(),
+                                (fading.enemy.y - fading.enemy.heightPx / 2).toInt()
+                            )
+                        }
+                        .size(width = fading.enemy.widthDp.dp, height = fading.enemy.heightDp.dp)
                 )
             }
         }
@@ -543,6 +614,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
                     slashStart = null
                     slashEnd = null
                     fadingSlashes = emptyList()
+                    fadingEnemies = emptyList()
                     projectiles = emptyList()
                     comboCount = 0
                     lastEnemyHitTime = 0L

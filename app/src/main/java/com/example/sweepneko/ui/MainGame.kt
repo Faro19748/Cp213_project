@@ -340,7 +340,7 @@ fun PlayerCharacterView(
         contentAlignment = Alignment.Center
     ) {
          Image(
-             painter = painterResource(id = R.drawable.cat_character),
+             painter = painterResource(id = R.drawable.cat_char),
              contentDescription = "Character",
              modifier = Modifier.fillMaxSize()
          )
