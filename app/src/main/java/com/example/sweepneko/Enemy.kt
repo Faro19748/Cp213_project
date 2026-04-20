@@ -47,16 +47,28 @@ data class Enemy(
             val spawnY: Float
 
             // 0 = Top, 1 = Left, 2 = Right
-            when (side) {
+            return when (side) {
                 0 -> {
                     spawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
-                    spawnY = -eHeightPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
+                    spawnY = -eHeightPx * 1.2f 
+                    Enemy(
+                        id = id,
+                        x = spawnX,
+                        y = spawnY,
+                        type = type,
+                        speed = type.speed,
+                        hp = type.initialHp,
+                        widthPx = eWidthPx,
+                        heightPx = eHeightPx,
+                        widthDp = type.widthDp,
+                        heightDp = type.heightDp,
+                        isFlipped = (type == EnemyType.NORMAL && spawnX < screenWidthPx / 2f)
+                    )
                 }
                 1 -> {
-                    spawnX = -eWidthPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
-                    // ปรับให้เกิดในช่วงที่สูงขึ้น (จากเหนือขอบบนเล็กน้อย ถึง 15% ของความสูงจอ)
+                    spawnX = -eWidthPx * 1.2f 
                     spawnY = (Math.random() * (screenHeightPx * 0.15f) - eHeightPx).toFloat()
-                    return Enemy(
+                    Enemy(
                         id = id,
                         x = spawnX,
                         y = spawnY,
@@ -71,9 +83,9 @@ data class Enemy(
                     )
                 }
                 else -> {
-                    spawnX = screenWidthPx + eWidthPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
+                    spawnX = screenWidthPx + eWidthPx * 1.2f 
                     spawnY = (Math.random() * (screenHeightPx * 0.15f) - eHeightPx).toFloat()
-                    return Enemy(
+                    Enemy(
                         id = id,
                         x = spawnX,
                         y = spawnY,
@@ -88,20 +100,6 @@ data class Enemy(
                     )
                 }
             }
-
-            return Enemy(
-                id = id,
-                x = spawnX,
-                y = spawnY,
-                type = type,
-                speed = type.speed,
-                hp = type.initialHp,
-                widthPx = eWidthPx,
-                heightPx = eHeightPx,
-                widthDp = type.widthDp,
-                heightDp = type.heightDp,
-                isFlipped = false
-            )
         }
     }
 }

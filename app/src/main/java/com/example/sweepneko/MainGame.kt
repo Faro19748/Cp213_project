@@ -26,9 +26,9 @@ class MainGame : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SweepNekoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                     // เรียกใช้ GameScreen จากไฟล์ GameScreen.kt
-                    GameScreen(modifier = Modifier.padding(innerPadding))
+                    GameScreen()
                 }
             }
         }

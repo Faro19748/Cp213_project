@@ -3,7 +3,6 @@ package com.example.sweepneko
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -55,14 +53,14 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
 
     val sizechar = remember(configuration) { min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.8f }
 
-    val hitboxchar = remember(sizechar) { sizechar * 0.5f }
+    val hitboxchar = remember(sizechar) { sizechar * 0.375f }
     val characterHitboxWidthPx = remember(hitboxchar, density) { with(density) { hitboxchar.toPx() } }
     val characterHitboxHeightPx = remember(hitboxchar, density) { with(density) { hitboxchar.toPx() } }
     
     val characterSizePx = remember(sizechar, density) { with(density) { sizechar.toPx() } }
     
     val characterX = remember(screenWidthPx) { screenWidthPx / 2f }
-    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.3f).toPx() } }
+    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } }
 
     val shooterStopDistDraw = remember(density) { 450f * density.density }
     val shooterStopDistDrawSq = remember(shooterStopDistDraw) { shooterStopDistDraw * shooterStopDistDraw }
@@ -81,7 +79,11 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val imageLoader = remember {
         ImageLoader.Builder(context)
             .components {
-                add(ImageDecoderDecoder.Factory())
+                if (SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
             }
             .build()
     }
@@ -129,6 +131,12 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             .build(), 
         imageLoader = imageLoader
     )
+    val bgPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bg)
+            .build(), 
+        imageLoader = imageLoader
+    )
     val charPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(R.drawable.b_cat)
@@ -145,263 +153,271 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     Box(modifier = modifier
         .fillMaxSize()
         .systemGestureExclusion()
-        .background(Color(0xFFDCF0C3)) 
-        .pointerInput(state.isPaused) {
-            if (state.isPaused) return@pointerInput
-            detectDragGestures(
-                onDragStart = { offset -> viewModel.onSlashStart(offset) },
-                onDrag = { change, dragAmount ->
-                    if (dragAmount.getDistanceSquared() > 10f) {
-                        viewModel.onSlashDrag(change.position)
-                    }
-                },
-                onDragEnd = { viewModel.onSlashEnd() },
-                onDragCancel = { viewModel.onSlashCancel() }
-            )
-        }
     ) {
-        // Removed heavy PRELOADERS Box that was causing lag
-        
-        // Projectiles
-        state.projectiles.forEach { p ->
-            key(p.id) {
-                Image(
-                    painter = bulletPainter,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(width = p.widthDp.dp, height = p.heightDp.dp)
-                        .graphicsLayer {
-                            translationX = p.x - (p.widthDp * density.density) / 2
-                            translationY = p.y - (p.heightDp * density.density) / 2
-                        }
-                )
-            }
-        }
+        Image(
+            painter = bgPainter,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
 
-        // Enemies
-        state.enemies.forEach { enemy ->
-            key(enemy.id) {
-                val dx = characterX - enemy.x
-                val dy = characterY - enemy.y
-                val distSq = dx*dx + dy*dy
-                val isInsideScreen = enemy.x >= enemy.widthPx / 2f && 
-                                     enemy.x <= screenWidthPx - enemy.widthPx / 2f && 
-                                     enemy.y >= enemy.heightPx / 2f && 
-                                     enemy.y <= screenHeightPx - enemy.heightPx / 2f
-                val isMoving = !(enemy.type == EnemyType.SHOOTING && distSq <= shooterStopDistDrawSq && isInsideScreen)
-                                     
-                val localPainter = when (enemy.type) {
-                    EnemyType.FAST -> fastEnemyPainter
-                    EnemyType.BIG -> bigEnemyPainter
-                    EnemyType.SHOOTING -> if (isMoving) shootEnemyMovePainter else shootEnemyIdlePainter
-                    else -> normalEnemyPainter
-                }
-                
-                Image(
-                    painter = localPainter,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
-                        .graphicsLayer {
-                            translationX = enemy.x - enemy.widthPx / 2
-                            translationY = enemy.y - enemy.heightPx / 2
-                            scaleX = if (enemy.isFlipped) -1f else 1f
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(state.isPaused) {
+                if (state.isPaused) return@pointerInput
+                detectDragGestures(
+                    onDragStart = { offset -> viewModel.onSlashStart(offset) },
+                    onDrag = { change, dragAmount ->
+                        if (dragAmount.getDistanceSquared() > 10f) {
+                            viewModel.onSlashDrag(change.position)
                         }
+                    },
+                    onDragEnd = { viewModel.onSlashEnd() },
+                    onDragCancel = { viewModel.onSlashCancel() }
                 )
             }
-        }
-        
-        // Fading (Dead) Enemies
-        val currentTimeRender = System.currentTimeMillis()
-        state.fadingEnemies.forEach { fading ->
-            key("dead_${fading.enemy.id}") {
-                val alpha = max(0f, 1f - (currentTimeRender - fading.deathTime) / 1000f)
-                val painter = when (fading.enemy.type) {
-                    EnemyType.FAST -> deadFastPainter
-                    EnemyType.BIG -> deadBigPainter
-                    EnemyType.SHOOTING -> deadShootPainter
-                    else -> deadNormalPainter
-                }
-                Image(
-                    painter = painter,
-                    contentDescription = null,
-                    alpha = alpha,
-                    modifier = Modifier
-                        .size(width = fading.enemy.widthDp.dp, height = fading.enemy.heightDp.dp)
-                        .graphicsLayer {
-                            translationX = fading.enemy.x - fading.enemy.widthPx / 2
-                            translationY = fading.enemy.y - fading.enemy.heightPx / 2
-                        }
-                )
-            }
-        }
-        
-        // Character
-        val isImmune = System.currentTimeMillis() < state.playerImmuneUntil
-        Box(
-            modifier = Modifier
-                .size(sizechar)
-                .graphicsLayer {
-                    translationX = characterX - characterSizePx / 2
-                    translationY = characterY - characterSizePx / 2
-                },
-            contentAlignment = Alignment.Center
         ) {
-             Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
-             Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
-        }
-        
-        if (state.slashStart != null && state.slashEnd != null || state.fadingSlashes.isNotEmpty()) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float, isRed: Boolean, isGold: Boolean ->
-                    val dx = end.x - start.x
-                    val dy = end.y - start.y
-                    val dist = sqrt(dx*dx + dy*dy)
-                    if (dist > 0) {
-                        val nx = -dy / dist
-                        val ny = dx / dist
-                        val midX = (start.x + end.x) / 2f
-                        val midY = (start.y + end.y) / 2f
-                        
-                        val multiplier = if (isGold) 2.2f else if (isRed) 1.8f else 1f
-                        val outerDist = min(150f, dist * 0.12f * multiplier)
-                        val innerDist = min(25f, dist * 0.02f * multiplier)
-                        val coreDist = min(80f, dist * 0.06f * multiplier)
-                        val strokeWidth = min(35f, max(5f, dist * 0.02f * multiplier))
+            // Projectiles
+            state.projectiles.forEach { p ->
+                key(p.id) {
+                    Image(
+                        painter = bulletPainter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = p.widthDp.dp, height = p.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = p.x - (p.widthDp * density.density) / 2
+                                translationY = p.y - (p.heightDp * density.density) / 2
+                            }
+                    )
+                }
+            }
 
-                        val cpOuterX = midX + nx * outerDist
-                        val cpOuterY = midY + ny * outerDist
-                        val cpInnerX = midX + nx * innerDist
-                        val cpInnerY = midY + ny * innerDist
-                        
-                        val pathOuter = Path().apply {
-                            moveTo(start.x, start.y)
-                            quadraticTo(cpOuterX, cpOuterY, end.x, end.y)
-                            quadraticTo(cpInnerX, cpInnerY, start.x, start.y)
-                            close()
-                        }
-                        val coreCpX = midX + nx * coreDist
-                        val coreCpY = midY + ny * coreDist
-                        val pathCore = Path().apply {
-                            moveTo(start.x, start.y)
-                            quadraticTo(coreCpX, coreCpY, end.x, end.y)
-                        }
+            // Enemies
+            state.enemies.forEach { enemy ->
+                key(enemy.id) {
+                    val dx = characterX - enemy.x
+                    val dy = characterY - enemy.y
+                    val distSq = dx*dx + dy*dy
+                    val isInsideScreen = enemy.x >= enemy.widthPx / 2f && 
+                                         enemy.x <= screenWidthPx - enemy.widthPx / 2f && 
+                                         enemy.y >= enemy.heightPx / 2f && 
+                                         enemy.y <= screenHeightPx - enemy.heightPx / 2f
+                    val isMoving = !(enemy.type == EnemyType.SHOOTING && distSq <= shooterStopDistDrawSq && isInsideScreen)
+                                         
+                    val localPainter = when (enemy.type) {
+                        EnemyType.FAST -> fastEnemyPainter
+                        EnemyType.BIG -> bigEnemyPainter
+                        EnemyType.SHOOTING -> if (isMoving) shootEnemyMovePainter else shootEnemyIdlePainter
+                        else -> normalEnemyPainter
+                    }
+                    
+                    Image(
+                        painter = localPainter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = enemy.x - enemy.widthPx / 2
+                                translationY = enemy.y - enemy.heightPx / 2
+                                scaleX = if (enemy.isFlipped) -1f else 1f
+                            }
+                    )
+                }
+            }
+            
+            // Fading (Dead) Enemies
+            val currentTimeRender = System.currentTimeMillis()
+            state.fadingEnemies.forEach { fading ->
+                key("dead_${fading.enemy.id}") {
+                    val alpha = max(0f, 1f - (currentTimeRender - fading.deathTime) / 1000f)
+                    val painter = when (fading.enemy.type) {
+                        EnemyType.FAST -> deadFastPainter
+                        EnemyType.BIG -> deadBigPainter
+                        EnemyType.SHOOTING -> deadShootPainter
+                        else -> deadNormalPainter
+                    }
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        alpha = alpha,
+                        modifier = Modifier
+                            .size(width = fading.enemy.widthDp.dp, height = fading.enemy.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = fading.enemy.x - fading.enemy.widthPx / 2
+                                translationY = fading.enemy.y - fading.enemy.heightPx / 2
+                            }
+                    )
+                }
+            }
+            
+            // Character
+            val isImmune = System.currentTimeMillis() < state.playerImmuneUntil
+            Box(
+                modifier = Modifier
+                    .size(sizechar)
+                    .graphicsLayer {
+                        translationX = characterX - characterSizePx / 2
+                        translationY = characterY - characterSizePx / 2
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                 Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
+                 Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
+            }
+            
+            if (state.slashStart != null && state.slashEnd != null || state.fadingSlashes.isNotEmpty()) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val drawSlash = { start: Offset, end: Offset, alphaOuter: Float, alphaInner: Float, isRed: Boolean, isGold: Boolean ->
+                        val dx = end.x - start.x
+                        val dy = end.y - start.y
+                        val dist = sqrt(dx*dx + dy*dy)
+                        if (dist > 0) {
+                            val nx = -dy / dist
+                            val ny = dx / dist
+                            val midX = (start.x + end.x) / 2f
+                            val midY = (start.y + end.y) / 2f
+                            
+                            val multiplier = if (isGold) 2.2f else if (isRed) 1.8f else 1f
+                            val outerDist = min(150f, dist * 0.12f * multiplier)
+                            val innerDist = min(25f, dist * 0.02f * multiplier)
+                            val coreDist = min(80f, dist * 0.06f * multiplier)
+                            val strokeWidth = min(35f, max(5f, dist * 0.02f * multiplier))
 
-                        val outerColor = if (isGold) Color(0xFFFFD700) else if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
-                        val alphaMult = if (isGold) 1.5f else if (isRed) 1.2f else 1f
-                        
-                        drawPath(
-                            path = pathOuter,
-                            color = outerColor.copy(alpha = min(1f, alphaOuter * alphaMult)),
-                        )
-                        drawPath(
-                            path = pathCore,
-                            color = Color.White.copy(alpha = alphaInner),
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                        )
-                        
-                        if (isRed || isGold) {
-                            val innerGlowPath = Path().apply {
+                            val cpOuterX = midX + nx * outerDist
+                            val cpOuterY = midY + ny * outerDist
+                            val cpInnerX = midX + nx * innerDist
+                            val cpInnerY = midY + ny * innerDist
+                            
+                            val pathOuter = Path().apply {
+                                moveTo(start.x, start.y)
+                                quadraticTo(cpOuterX, cpOuterY, end.x, end.y)
+                                quadraticTo(cpInnerX, cpInnerY, start.x, start.y)
+                                close()
+                            }
+                            val coreCpX = midX + nx * coreDist
+                            val coreCpY = midY + ny * coreDist
+                            val pathCore = Path().apply {
                                 moveTo(start.x, start.y)
                                 quadraticTo(coreCpX, coreCpY, end.x, end.y)
                             }
-                            val glowColor = if (isGold) Color.White else Color(0xFFFFD700)
+
+                            val outerColor = if (isGold) Color(0xFFFFD700) else if (isRed) Color(0xFFFF1111) else Color(0xFF7AAEE0)
+                            val alphaMult = if (isGold) 1.5f else if (isRed) 1.2f else 1f
+                            
                             drawPath(
-                                path = innerGlowPath,
-                                color = glowColor.copy(alpha = alphaInner * 0.8f),
-                                style = Stroke(width = strokeWidth * 0.4f, cap = StrokeCap.Round)
+                                path = pathOuter,
+                                color = outerColor.copy(alpha = min(1f, alphaOuter * alphaMult)),
                             )
+                            drawPath(
+                                path = pathCore,
+                                color = Color.White.copy(alpha = alphaInner),
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                            
+                            if (isRed || isGold) {
+                                val innerGlowPath = Path().apply {
+                                    moveTo(start.x, start.y)
+                                    quadraticTo(coreCpX, coreCpY, end.x, end.y)
+                                }
+                                val glowColor = if (isGold) Color.White else Color(0xFFFFD700)
+                                drawPath(
+                                    path = innerGlowPath,
+                                    color = glowColor.copy(alpha = alphaInner * 0.8f),
+                                    style = Stroke(width = strokeWidth * 0.4f, cap = StrokeCap.Round)
+                                )
+                            }
+                        }
+                    }
+
+                    if (state.slashStart != null && state.slashEnd != null) {
+                        if (state.isUltimateActive) {
+                            val dx = state.slashEnd!!.x - state.slashStart!!.x
+                            val dy = state.slashEnd!!.y - state.slashStart!!.y
+                            val angle = 0.6f
+                            val cosA = kotlin.math.cos(angle.toDouble()).toFloat()
+                            val sinA = kotlin.math.sin(angle.toDouble()).toFloat()
+                            val p1x = state.slashStart!!.x + (dx * cosA - dy * sinA)
+                            val p1y = state.slashStart!!.y + (dx * sinA + dy * cosA)
+                            val p2x = state.slashStart!!.x + (dx * cosA + dy * sinA)
+                            val p2y = state.slashStart!!.y + (-dx * sinA + dy * cosA)
+                            
+                            drawSlash(state.slashStart!!, state.slashEnd!!, 0.9f, 1f, false, true)
+                            drawSlash(state.slashStart!!, Offset(p1x, p1y), 0.9f, 1f, false, true)
+                            drawSlash(state.slashStart!!, Offset(p2x, p2y), 0.9f, 1f, false, true)
+                        } else {
+                            drawSlash(state.slashStart!!, state.slashEnd!!, 0.9f, 1f, state.isNextSlashRed, false)
+                        }
+                    }
+                    
+                    val currentTime = System.currentTimeMillis()
+                    state.fadingSlashes.forEach { slash ->
+                        val elapsed = currentTime - slash.startTime
+                        val progress = elapsed / 400f
+                        if (progress in 0f..1f) {
+                            val alpha = max(0f, 1f - progress)
+                            drawSlash(slash.start, slash.end, alpha * 0.9f, alpha, slash.isRed, slash.isGold)
                         }
                     }
                 }
-
-                if (state.slashStart != null && state.slashEnd != null) {
-                    if (state.isUltimateActive) {
-                        val dx = state.slashEnd!!.x - state.slashStart!!.x
-                        val dy = state.slashEnd!!.y - state.slashStart!!.y
-                        val angle = 0.6f
-                        val cosA = kotlin.math.cos(angle.toDouble()).toFloat()
-                        val sinA = kotlin.math.sin(angle.toDouble()).toFloat()
-                        val p1x = state.slashStart!!.x + (dx * cosA - dy * sinA)
-                        val p1y = state.slashStart!!.y + (dx * sinA + dy * cosA)
-                        val p2x = state.slashStart!!.x + (dx * cosA + dy * sinA)
-                        val p2y = state.slashStart!!.y + (-dx * sinA + dy * cosA)
-                        
-                        drawSlash(state.slashStart!!, state.slashEnd!!, 0.9f, 1f, false, true)
-                        drawSlash(state.slashStart!!, Offset(p1x, p1y), 0.9f, 1f, false, true)
-                        drawSlash(state.slashStart!!, Offset(p2x, p2y), 0.9f, 1f, false, true)
-                    } else {
-                        drawSlash(state.slashStart!!, state.slashEnd!!, 0.9f, 1f, state.isNextSlashRed, false)
-                    }
-                }
-                
-                val currentTime = System.currentTimeMillis()
-                state.fadingSlashes.forEach { slash ->
-                    val elapsed = currentTime - slash.startTime
-                    val progress = elapsed / 400f
-                    if (progress in 0f..1f) {
-                        val alpha = max(0f, 1f - progress)
-                        drawSlash(slash.start, slash.end, alpha * 0.9f, alpha, slash.isRed, slash.isGold)
-                    }
-                }
             }
-        }
 
-        HpStaminaBar(
-            hp = state.hp, 
-            stamina = state.stamina, 
-            ultimateGauge = state.ultimateGauge, 
-            comboCount = state.comboCount, 
-            isNextSlashRed = state.isNextSlashRed
-        )
-        
-        if (state.isGameOver) {
-            GameOverMenu(
-                onRestart = { viewModel.restartGame() },
-                onMenu = { activity?.finish() }
+            HpStaminaBar(
+                hp = state.hp, 
+                stamina = state.stamina, 
+                ultimateGauge = state.ultimateGauge, 
+                comboCount = state.comboCount, 
+                isNextSlashRed = state.isNextSlashRed
             )
-        }
+            
+            if (state.isGameOver) {
+                GameOverMenu(
+                    onRestart = { viewModel.restartGame() },
+                    onMenu = { activity?.finish() }
+                )
+            }
 
-        if (!state.isGameOver && !state.isPaused) {
-            Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                Box(
-                    modifier = Modifier.align(Alignment.BottomStart),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        progress = { state.ultimateGauge / 100f },
-                        modifier = Modifier.size(64.dp),
-                        color = Color(0xFFFFD700),
-                        strokeWidth = 4.dp,
-                        trackColor = Color.Gray.copy(alpha = 0.5f)
-                    )
-                    FloatingActionButton(
-                        onClick = { viewModel.activateUltimate() }, 
-                        containerColor = if (state.ultimateGauge >= 100f) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.DarkGray.copy(alpha = 0.7f),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        modifier = Modifier.size(52.dp)
+            if (!state.isGameOver && !state.isPaused) {
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomStart),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "ULT", 
-                            fontSize = 16.sp, 
-                            fontWeight = FontWeight.Bold, 
-                            color = if (state.ultimateGauge >= 100f) Color.Black else Color.LightGray
+                        CircularProgressIndicator(
+                            progress = { state.ultimateGauge / 100f },
+                            modifier = Modifier.size(64.dp),
+                            color = Color(0xFFFFD700),
+                            strokeWidth = 4.dp,
+                            trackColor = Color.Gray.copy(alpha = 0.5f)
                         )
+                        FloatingActionButton(
+                            onClick = { viewModel.activateUltimate() }, 
+                            containerColor = if (state.ultimateGauge >= 100f) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.DarkGray.copy(alpha = 0.7f),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            modifier = Modifier.size(52.dp)
+                        ) {
+                            Text(
+                                "ULT", 
+                                fontSize = 16.sp, 
+                                fontWeight = FontWeight.Bold, 
+                                color = if (state.ultimateGauge >= 100f) Color.Black else Color.LightGray
+                            )
+                        }
+                    }
+                    
+                    FloatingActionButton(
+                        onClick = { viewModel.pauseGame() }, 
+                        containerColor = Color.White,
+                        modifier = Modifier.align(Alignment.BottomEnd)
+                    ) {
+                        Text("II", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                 }
-                
-                FloatingActionButton(
-                    onClick = { viewModel.pauseGame() }, 
-                    containerColor = Color.White,
-                    modifier = Modifier.align(Alignment.BottomEnd)
-                ) {
-                    Text("II", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                }
             }
-        }
 
-        if (state.isPaused && !state.isGameOver) {
-            PauseMenu(onResume = { viewModel.resumeGame() }, onMenu = { activity?.finish() })
+            if (state.isPaused && !state.isGameOver) {
+                PauseMenu(onResume = { viewModel.resumeGame() }, onMenu = { activity?.finish() })
+            }
         }
     }
 }

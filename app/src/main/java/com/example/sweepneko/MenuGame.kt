@@ -45,8 +45,8 @@ class MenuGame : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SweepNekoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    GameMenuScreen(modifier = Modifier.padding(innerPadding))
+                Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                    GameMenuScreen()
                 }
             }
         }
@@ -71,6 +71,13 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             .build()
     }
 
+    val bgPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bg)
+            .build(), 
+        imageLoader = imageLoader
+    )
+
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
@@ -92,87 +99,94 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFEDCE))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // 1. Game Name (Top Center)
-        Text(
-            text = "SweepNeko",
-            fontSize = 42.sp,
-            fontWeight = FontWeight.Bold
+    Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = bgPainter,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
         )
-
-        // 2. Character Image (Center)
-        // ใส่ Box ครอบไว้แล้วกำหนด weight(1f) เพื่อให้ Box นี้เป็นตัว "กันชน" ไม่ให้ปุ่มเลื่อน
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    model = ImageRequest.Builder(context)
-                        .data(R.drawable.cat_char)
-                        .size(coil.size.Size.ORIGINAL)
-                        .build(),
-                    imageLoader = imageLoader
-                ),
-                contentDescription = "Character",
-                modifier = Modifier
-                    .fillMaxSize(1f) // เต็มพื้นที่อ้างอิง Box
-                    .aspectRatio(1f) // คุมสัดส่วนภาพไม่ให้บิดเบี้ยว
-                    .scale(1.4f) // สเกลขยายขนาดเกิน Box โดยไม่เบียดองค์ประกอบอื่น
-            )
-        }
-
-        // Buttons
+        
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.offset(y = (-40).dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 3. Play Button
-            Button(
-                onClick = { 
-                    activity?.startActivity(android.content.Intent(activity, MainGame::class.java))
-                },
-                modifier = Modifier
-                    .width(240.dp)
-                    .height(60.dp),
-                shape = MaterialTheme.shapes.medium
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // 1. Game Name (Top Center)
+            Text(
+                text = "SweepNeko",
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // 2. Character Image (Center)
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-                Text(text = "Play", fontSize = 24.sp)
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(context)
+                            .data(R.drawable.cat_char)
+                            .size(coil.size.Size.ORIGINAL)
+                            .build(),
+                        imageLoader = imageLoader
+                    ),
+                    contentDescription = "Character",
+                    modifier = Modifier
+                        .fillMaxSize(1f)
+                        .aspectRatio(1f)
+                        .scale(1.4f)
+                )
             }
 
-            // 4. Setting Button
-            Button(
-                onClick = { /* TODO: Setting Action */ },
-                modifier = Modifier
-                    .width(240.dp)
-                    .height(60.dp),
-                shape = MaterialTheme.shapes.medium
+            // Buttons
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                modifier = Modifier.offset(y = (-40).dp)
             ) {
-                Text(text = "Setting", fontSize = 24.sp)
+                // 3. Play Button
+                Button(
+                    onClick = { 
+                        activity?.startActivity(android.content.Intent(activity, MainGame::class.java))
+                    },
+                    modifier = Modifier
+                        .width(240.dp)
+                        .height(60.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(text = "Play", fontSize = 24.sp)
+                }
+
+                // 4. Setting Button
+                Button(
+                    onClick = { /* TODO: Setting Action */ },
+                    modifier = Modifier
+                        .width(240.dp)
+                        .height(60.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(text = "Setting", fontSize = 24.sp)
+                }
+                
+                // 5. Exit Button with confirmation
+                Button(
+                    onClick = { showExitDialog = true },
+                    modifier = Modifier
+                        .width(240.dp)
+                        .height(60.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(text = "Exit", fontSize = 24.sp)
+                }
             }
             
-            // 5. Exit Button with confirmation
-            Button(
-                onClick = { showExitDialog = true },
-                modifier = Modifier
-                    .width(240.dp)
-                    .height(60.dp),
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text(text = "Exit", fontSize = 24.sp)
-            }
+            Spacer(modifier = Modifier.height(32.dp))
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
