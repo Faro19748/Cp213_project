@@ -5,11 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +15,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.*
+import androidx.compose.animation.Animatable
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +30,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.sweepneko.ui.theme.SweepNekoTheme
+import kotlin.math.min
 
 import android.os.Build.VERSION.SDK_INT
 import coil.ImageLoader
@@ -58,8 +63,40 @@ class MenuGame : ComponentActivity() {
 @Composable
 fun GameMenuScreen(modifier: Modifier = Modifier) {
     var showExitDialog by remember { mutableStateOf(false) }
+    var isStarting by remember { mutableStateOf(false) }
     val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val characterYTargetPx = remember(density, configuration) { 
+        with(density) {
+            val screenHeightPx = configuration.screenHeightDp.dp.toPx()
+            val sizechar = min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.8f
+            screenHeightPx - (sizechar * 0.4f).toPx()
+        }
+    }
+    
+    val animY = remember { Animatable(0f) }
+    val animScale = remember { Animatable(1.4f) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isStarting = false
+                scope.launch {
+                    animY.snapTo(0f)
+                    animScale.snapTo(1.4f)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val imageLoader = remember {
         ImageLoader.Builder(context)
@@ -73,6 +110,37 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             .build()
     }
 
+    LaunchedEffect(isStarting) {
+        if (isStarting) {
+            // 1. Shake animation
+            repeat(4) {
+                animY.animateTo(15f, tween(40))
+                animY.animateTo(-15f, tween(40))
+            }
+            animY.animateTo(0f, tween(40))
+            
+            // 2. Move to bottom and scale to game size
+            coroutineScope {
+                launch {
+                    // Calculate the relative offset needed to reach the target Y position in the GameScreen
+                    // In MenuGame, the character is inside a Box with weight(1f) and center alignment.
+                    // To match the GameScreen's position (bottom area), we move it to characterYTargetPx.
+                    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+                    val centerToBottomOffsetPx = (screenHeightPx / 2f) - (characterYTargetPx)
+                    animY.animateTo(-centerToBottomOffsetPx / density.density + 80f, tween(500, easing = FastOutLinearInEasing))
+                }
+                launch {
+                    animScale.animateTo(0.8f, tween(500))
+                }
+            }
+            
+            delay(100)
+            activity?.startActivity(android.content.Intent(activity, MainGame::class.java))
+            @Suppress("DEPRECATION")
+            activity?.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
+    }
+
     val bgPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(R.drawable.bg)
@@ -84,6 +152,21 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         model = ImageRequest.Builder(context)
             .data(R.drawable.logo)
             .build(), 
+        imageLoader = imageLoader
+    )
+    
+    val spinPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.spin)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    
+    val menuCharPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.cat_char)
+            .size(coil.size.Size.ORIGINAL)
+            .build(),
         imageLoader = imageLoader
     )
 
@@ -161,66 +244,65 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
 
             // 2. Character Image (Center)
             Box(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .offset(y = animY.value.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(context)
-                            .data(R.drawable.cat_char)
-                            .size(coil.size.Size.ORIGINAL)
-                            .build(),
-                        imageLoader = imageLoader
-                    ),
+                    painter = if (isStarting) spinPainter else menuCharPainter,
                     contentDescription = "Character",
                     modifier = Modifier
                         .fillMaxSize(1f)
                         .aspectRatio(1f)
-                        .scale(1.4f)
+                        .scale(animScale.value)
                 )
             }
 
             // Buttons
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.offset(y = (-40).dp)
-            ) {
-                // 3. Play Button
-                Button(
-                    onClick = { 
-                        activity?.startActivity(android.content.Intent(activity, MainGame::class.java))
-                    },
-                    modifier = Modifier
-                        .width(240.dp)
-                        .height(60.dp),
-                    shape = MaterialTheme.shapes.medium
+            if (!isStarting) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.offset(y = (-40).dp)
                 ) {
-                    Text(text = "Play", fontSize = 24.sp)
-                }
+                    // 3. Play Button
+                    Button(
+                        onClick = { isStarting = true },
+                        modifier = Modifier
+                            .width(240.dp)
+                            .height(60.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(text = "Play", fontSize = 24.sp)
+                    }
 
-                // 4. Setting Button
-                Button(
-                    onClick = { /* TODO: Setting Action */ },
-                    modifier = Modifier
-                        .width(240.dp)
-                        .height(60.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(text = "Setting", fontSize = 24.sp)
+                    // 4. Setting Button
+                    Button(
+                        onClick = { /* TODO: Setting Action */ },
+                        modifier = Modifier
+                            .width(240.dp)
+                            .height(60.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(text = "Setting", fontSize = 24.sp)
+                    }
+                    
+                    // 5. Exit Button with confirmation
+                    Button(
+                        onClick = { showExitDialog = true },
+                        modifier = Modifier
+                            .width(240.dp)
+                            .height(60.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(text = "Exit", fontSize = 24.sp)
+                    }
                 }
-                
-                // 5. Exit Button with confirmation
-                Button(
-                    onClick = { showExitDialog = true },
-                    modifier = Modifier
-                        .width(240.dp)
-                        .height(60.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(text = "Exit", fontSize = 24.sp)
-                }
+            } else {
+                // Spacer to maintain layout while buttons are hidden
+                Spacer(modifier = Modifier.height(260.dp))
             }
             
             Spacer(modifier = Modifier.height(32.dp))
