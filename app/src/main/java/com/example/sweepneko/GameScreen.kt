@@ -50,23 +50,22 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val activity = LocalActivity.current
     val context = LocalContext.current
     
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val screenWidthPx = remember(configuration, density) { with(density) { configuration.screenWidthDp.dp.toPx() } }
+    val screenHeightPx = remember(configuration, density) { with(density) { configuration.screenHeightDp.dp.toPx() } }
 
-    val baseSizeDp = min(configuration.screenWidthDp, configuration.screenHeightDp).dp
-    val sizechar = baseSizeDp * 0.6f
-    val characterWidthDp = sizechar
-    val characterHeightDp = sizechar
+    val sizechar = remember(configuration) { min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.6f }
 
-    val hitboxchar = sizechar * 0.5f
-    val characterHitboxWidthPx = with(density) { hitboxchar.toPx() }
-    val characterHitboxHeightPx = with(density) { hitboxchar.toPx() }
+    val hitboxchar = remember(sizechar) { sizechar * 0.5f }
+    val characterHitboxWidthPx = remember(hitboxchar, density) { with(density) { hitboxchar.toPx() } }
+    val characterHitboxHeightPx = remember(hitboxchar, density) { with(density) { hitboxchar.toPx() } }
     
-    val characterWidthPx = with(density) { characterWidthDp.toPx() }
-    val characterHeightPx = with(density) { characterHeightDp.toPx() }
+    val characterSizePx = remember(sizechar, density) { with(density) { sizechar.toPx() } }
     
-    val characterX = screenWidthPx / 2f
-    val characterY = screenHeightPx - with(density) { (sizechar * 0.4f).toPx() }
+    val characterX = remember(screenWidthPx) { screenWidthPx / 2f }
+    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } }
+
+    val shooterStopDistDraw = remember(density) { 450f * density.density }
+    val shooterStopDistDrawSq = remember(shooterStopDistDraw) { shooterStopDistDraw * shooterStopDistDraw }
 
     LaunchedEffect(screenWidthPx, screenHeightPx, density.density) {
         viewModel.screenWidthPx = screenWidthPx
@@ -82,23 +81,61 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val imageLoader = remember {
         ImageLoader.Builder(context)
             .components {
-                if (SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
-                }
+                add(ImageDecoderDecoder.Factory())
             }
             .build()
     }
 
-    // Pre-load painters
-    val bulletPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.bullet).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val fastEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.sm_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val bigEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.b_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val shootEnemyMovePainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.s_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val shootEnemyIdlePainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.ss_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val normalEnemyPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.n_enemy).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
-    val charPainter = rememberAsyncImagePainter(model = ImageRequest.Builder(context).data(R.drawable.b_cat).size(coil.size.Size.ORIGINAL).build(), imageLoader = imageLoader)
+    // Pre-load painters with specific sizes to reduce memory/CPU usage
+    val bulletPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bullet)
+            .size(100) // Limit decode size
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val fastEnemyPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.sm_enemy)
+            .size(180)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val bigEnemyPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.b_enemy)
+            .size(450)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val shootEnemyMovePainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.s_enemy)
+            .size(300)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val shootEnemyIdlePainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.ss_enemy)
+            .size(300)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val normalEnemyPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.n_enemy)
+            .size(240)
+            .build(), 
+        imageLoader = imageLoader
+    )
+    val charPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.b_cat)
+            .size(600)
+            .build(), 
+        imageLoader = imageLoader
+    )
 
     val deadFastPainter = painterResource(id = R.drawable.d_sm_enemy)
     val deadBigPainter = painterResource(id = R.drawable.d_b_enemy)
@@ -114,7 +151,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             detectDragGestures(
                 onDragStart = { offset -> viewModel.onSlashStart(offset) },
                 onDrag = { change, dragAmount ->
-                    if (dragAmount.getDistanceSquared() > 10f) { // ลดความถี่การอัปเดตถ้าขยับน้อยเกินไป
+                    if (dragAmount.getDistanceSquared() > 10f) {
                         viewModel.onSlashDrag(change.position)
                     }
                 },
@@ -123,16 +160,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             )
         }
     ) {
-        // PRELOADERS
-        Box(modifier = Modifier.size(1.dp).alpha(0.01f)) {
-            Image(painter = bulletPainter, contentDescription = null)
-            Image(painter = fastEnemyPainter, contentDescription = null)
-            Image(painter = bigEnemyPainter, contentDescription = null)
-            Image(painter = shootEnemyMovePainter, contentDescription = null)
-            Image(painter = shootEnemyIdlePainter, contentDescription = null)
-            Image(painter = normalEnemyPainter, contentDescription = null)
-            Image(painter = charPainter, contentDescription = null)
-        }
+        // Removed heavy PRELOADERS Box that was causing lag
         
         // Projectiles
         state.projectiles.forEach { p ->
@@ -151,17 +179,16 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
         }
 
         // Enemies
-        val shooterStopDistDraw = 450f * density.density
         state.enemies.forEach { enemy ->
             key(enemy.id) {
                 val dx = characterX - enemy.x
                 val dy = characterY - enemy.y
-                val dist = sqrt((dx*dx + dy*dy).toDouble()).toFloat()
+                val distSq = dx*dx + dy*dy
                 val isInsideScreen = enemy.x >= enemy.widthPx / 2f && 
                                      enemy.x <= screenWidthPx - enemy.widthPx / 2f && 
                                      enemy.y >= enemy.heightPx / 2f && 
                                      enemy.y <= screenHeightPx - enemy.heightPx / 2f
-                val isMoving = !(enemy.type == EnemyType.SHOOTING && dist <= shooterStopDistDraw && isInsideScreen)
+                val isMoving = !(enemy.type == EnemyType.SHOOTING && distSq <= shooterStopDistDrawSq && isInsideScreen)
                                      
                 val localPainter = when (enemy.type) {
                     EnemyType.FAST -> fastEnemyPainter
@@ -212,10 +239,10 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
         val isImmune = System.currentTimeMillis() < state.playerImmuneUntil
         Box(
             modifier = Modifier
-                .size(width = characterWidthDp, height = characterHeightDp)
+                .size(sizechar)
                 .graphicsLayer {
-                    translationX = characterX - characterWidthPx / 2
-                    translationY = characterY - characterHeightPx / 2
+                    translationX = characterX - characterSizePx / 2
+                    translationY = characterY - characterSizePx / 2
                 },
             contentAlignment = Alignment.Center
         ) {

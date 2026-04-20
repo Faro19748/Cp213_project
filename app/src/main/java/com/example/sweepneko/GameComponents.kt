@@ -97,7 +97,7 @@ fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int,
             Spacer(modifier = Modifier.height(16.dp))
             val comboColor = if (isNextSlashRed) Color(0xFFE07A7A) else Color(0xFFFF9800)
             Text(
-                text = "Combo: $comboCount", 
+                text = "Hit: $comboCount",
                 fontSize = 28.sp, 
                 fontWeight = FontWeight.Black, 
                 color = comboColor,

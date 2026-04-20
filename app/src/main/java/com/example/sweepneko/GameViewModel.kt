@@ -95,7 +95,7 @@ class GameViewModel : ViewModel() {
 
             val newEnemies = s.enemies.toMutableList()
             timeSinceLastSpawn += dt
-            if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS) {
+            if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS && newEnemies.size < 15) {
                 spawnCount++
                 newEnemies.add(Enemy.createRandomSpawn(
                     id = spawnCount,
@@ -117,7 +117,7 @@ class GameViewModel : ViewModel() {
                     currentEnemies = newEnemies
                 )
                 
-                val swarmEnemies = (1..6).map { _ ->
+                val swarmEnemies = (1..4).map { _ ->
                     spawnCount++
                     epicenter.copy(
                         id = spawnCount,
@@ -207,16 +207,24 @@ class GameViewModel : ViewModel() {
             }
 
             for (i in nextEnemiesList.indices) {
+                val e1 = nextEnemiesList[i]
                 for (j in i + 1 until nextEnemiesList.size) {
-                    val e1 = nextEnemiesList[i]; val e2 = nextEnemiesList[j]
+                    val e2 = nextEnemiesList[j]
                     val minDist = (e1.widthPx + e2.widthPx) / 2f
-                    val edx = e2.x - e1.x; val edy = e2.y - e1.y
-                    val dist2 = edx*edx + edy*edy
-                    if (dist2 < minDist * minDist && dist2 > 0) {
-                        val distance = sqrt(dist2.toDouble()).toFloat()
-                        val overlap = minDist - distance
-                        val pushX = (edx/distance) * overlap * 0.5f; val pushY = (edy/distance) * overlap * 0.5f
-                        e1.x -= pushX; e1.y -= pushY; e2.x += pushX; e2.y += pushY
+                    val edx = e2.x - e1.x
+                    val edy = e2.y - e1.y
+                    val distSq = edx * edx + edy * edy
+                    
+                    if (distSq < minDist * minDist && distSq > 0.01f) {
+                        val distance = sqrt(distSq.toDouble()).toFloat()
+                        val overlap = (minDist - distance) / distance * 0.5f
+                        val pushX = edx * overlap
+                        val pushY = edy * overlap
+                        
+                        e1.x -= pushX
+                        e1.y -= pushY
+                        e2.x += pushX
+                        e2.y += pushY
                     }
                 }
             }

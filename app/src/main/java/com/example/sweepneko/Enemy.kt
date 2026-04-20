@@ -1,7 +1,7 @@
 package com.example.sweepneko
 
 enum class EnemyType(val initialHp: Int, val speed: Float, val widthDp: Float, val heightDp: Float) {
-    NORMAL(initialHp = 1, speed = 3f, widthDp = 80f, heightDp = 80f),
+    NORMAL(initialHp = 1, speed = 3f, widthDp = 100f, heightDp = 100f),
     FAST(initialHp = 1, speed = 5f, widthDp = 60f, heightDp = 60f),
     BIG(initialHp = 3, speed = 2f, widthDp = 150f, heightDp = 150f),
     SHOOTING(initialHp = 1, speed = 3f, widthDp = 100f, heightDp = 100f)
@@ -49,15 +49,15 @@ data class Enemy(
             when (side) {
                 0 -> { 
                     spawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
-                    spawnY = -eHeightPx 
+                    spawnY = -eHeightPx * 2 // เพิ่มระยะให้สูงขึ้นไปอีก
                 }
                 1 -> { 
-                    spawnX = -eWidthPx
-                    spawnY = (Math.random() * (screenHeightPx / 2f)).toFloat() 
+                    spawnX = -eWidthPx * 2 // ขยับออกไปทางซ้ายมากขึ้น
+                    spawnY = (Math.random() * (screenHeightPx * 0.4f)).toFloat() // สุ่มในช่วง 40% บนของจอ
                 }
                 else -> { 
-                    spawnX = screenWidthPx + eWidthPx
-                    spawnY = (Math.random() * (screenHeightPx / 2f)).toFloat() 
+                    spawnX = screenWidthPx + eWidthPx * 2 // ขยับออกไปทางขวามากขึ้น
+                    spawnY = (Math.random() * (screenHeightPx * 0.4f)).toFloat() // สุ่มในช่วง 40% บนของจอ
                 }
             }
 

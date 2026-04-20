@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,7 +22,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.sweepneko.R
 import com.example.sweepneko.ui.theme.SweepNekoTheme
-import kotlinx.coroutines.delay
 import kotlin.math.sqrt
 import kotlin.math.max
 import kotlin.math.min
@@ -36,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 
 class MainGame : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,11 +59,11 @@ class MainGame : ComponentActivity() {
 }
 
 data class Enemy(
-    var id: Long,
-    var x: Float,
-    var y: Float,
+    val id: Long,
+    val x: Float,
+    val y: Float,
     val speed: Float = 3f,
-    var lastAttackTime: Long = 0L
+    val lastAttackTime: Long = 0L
 )
 
 @Composable
@@ -79,28 +79,24 @@ fun GameScreen(modifier: Modifier = Modifier) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    // Optimize: Cache density-dependent pixel values to avoid re-calculating on every frame
+    val screenWidthPx = remember(configuration.screenWidthDp, density) { with(density) { configuration.screenWidthDp.dp.toPx() } }
+    val screenHeightPx = remember(configuration.screenHeightDp, density) { with(density) { configuration.screenHeightDp.dp.toPx() } }
 
-    //sizechar
-    val sizechar = 400.dp
-    val characterWidthDp = sizechar
-    val characterHeightDp = sizechar
-    val characterWidthPx = with(density) { characterWidthDp.toPx() }
-    val characterHeightPx = with(density) { characterHeightDp.toPx() }
+    val characterWidthDp = 400.dp
+    val characterHeightDp = 400.dp
 
-    // Hitbox Size
     val hitboxchar = 100.dp
-    val characterHitboxWidthPx = with(density) { hitboxchar.toPx() }
-    val characterHitboxHeightPx = with(density) { hitboxchar.toPx() }
+    val characterHitboxWidthPx = remember(density) { with(density) { hitboxchar.toPx() } }
+    val characterHitboxHeightPx = remember(density) { with(density) { hitboxchar.toPx() } }
     
     val enemyWidthDp = 60.dp
     val enemyHeightDp = 60.dp
-    val enemyWidthPx = with(density) { enemyWidthDp.toPx() }
-    val enemyHeightPx = with(density) { enemyHeightDp.toPx() }
+    val enemyWidthPx = remember(density) { with(density) { enemyWidthDp.toPx() } }
+    val enemyHeightPx = remember(density) { with(density) { enemyHeightDp.toPx() } }
     
     val characterX = screenWidthPx / 2f
-    val characterY = screenHeightPx - with(density) { 150.dp.toPx() }
+    val characterY = remember(screenHeightPx, density) { screenHeightPx - with(density) { 150.dp.toPx() } }
     
     var spawnCount by remember { mutableLongStateOf(0L) }
 
@@ -111,89 +107,94 @@ fun GameScreen(modifier: Modifier = Modifier) {
         var timeSinceLastSpawn = 0L
 
         while (hp > 0) {
-            val currentTime = System.currentTimeMillis()
-            val dt = currentTime - lastFrameTime
-            lastFrameTime = currentTime
+            withFrameMillis { currentTime ->
+                val dt = currentTime - lastFrameTime
+                lastFrameTime = currentTime
 
-            if (!isPaused) {
-                timeSinceLastSpawn += dt
-                // Spawn enemy every 5 seconds
-                if (timeSinceLastSpawn >= 5000) {
-                    // Spawn in spawn zone (above screen or top of screen)
-                    val spawnX = (Math.random() * (screenWidthPx - enemyWidthPx) + enemyWidthPx/2f).toFloat()
-                    val spawnY = -enemyHeightPx // Offscreen above
-                    spawnCount++
-                    enemies = enemies + Enemy(id = spawnCount, x = spawnX, y = spawnY, speed = 4f)
-                    timeSinceLastSpawn = 0L
-                }
-            
-            // Move enemies & check collision
-            var newHp = hp
-            val newEnemies = enemies.map { enemy ->
-                val dx = characterX - enemy.x
-                val dy = characterY - enemy.y
-                val dist = sqrt((dx*dx + dy*dy).toDouble()).toFloat()
-                
-                var nx = enemy.x
-                var ny = enemy.y
-                if (dist > 0) {
-                    nx += (dx/dist) * enemy.speed
-                    ny += (dy/dist) * enemy.speed
-                }
-                
-                // Collision (AABB Bounding Box based on PNG dimensions)
-                val enemyLeft = nx - enemyWidthPx / 2
-                val enemyRight = nx + enemyWidthPx / 2
-                val enemyTop = ny - enemyHeightPx / 2
-                val enemyBottom = ny + enemyHeightPx / 2
-                
-                val charLeft = characterX - characterHitboxWidthPx / 2
-                val charRight = characterX + characterHitboxWidthPx / 2
-                val charTop = characterY - characterHitboxHeightPx / 2
-                val charBottom = characterY + characterHitboxHeightPx / 2
+                if (!isPaused) {
+                    timeSinceLastSpawn += dt
+                    // Spawn 4 enemies every 5 seconds
+                    if (timeSinceLastSpawn >= 5000) {
+                        val newSpawnedEnemies = mutableListOf<Enemy>()
+                        repeat(4) {
+                            val spawnX = (Math.random() * (screenWidthPx - enemyWidthPx) + enemyWidthPx / 2f).toFloat()
+                            val spawnY = -with(density) { (100 + Math.random() * 200).dp.toPx() }
+                            spawnCount++
+                            newSpawnedEnemies.add(Enemy(id = spawnCount, x = spawnX, y = spawnY, speed = 4f))
+                        }
+                        enemies = enemies + newSpawnedEnemies
+                        timeSinceLastSpawn = 0L
+                    }
 
-                if (enemyRight > charLeft && enemyLeft < charRight &&
-                    enemyBottom > charTop && enemyTop < charBottom) {
-                    // Revert movement to stop at the collision boundary
-                    nx = enemy.x
-                    ny = enemy.y
-                    
-                    if (currentTime > playerImmuneUntil) {
-                        newHp -= 25
-                        playerImmuneUntil = currentTime + 3000L // 3 seconds immune/cooldown
+                    // Move enemies & check collision
+                    var newHp = hp
+                    val currentImmuneUntil = playerImmuneUntil
+                    val movedEnemies = enemies.map { enemy ->
+                        val dx = characterX - enemy.x
+                        val dy = characterY - enemy.y
+                        val dist = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+
+                        var nx = enemy.x
+                        var ny = enemy.y
+                        if (dist > 0) {
+                            nx += (dx / dist) * enemy.speed
+                            ny += (dy / dist) * enemy.speed
+                        }
+
+                        // Collision
+                        val enemyLeft = nx - enemyWidthPx / 2
+                        val enemyRight = nx + enemyWidthPx / 2
+                        val enemyTop = ny - enemyHeightPx / 2
+                        val enemyBottom = ny + enemyHeightPx / 2
+
+                        val charLeft = characterX - characterHitboxWidthPx / 2
+                        val charRight = characterX + characterHitboxWidthPx / 2
+                        val charTop = characterY - characterHitboxHeightPx / 2
+                        val charBottom = characterY + characterHitboxHeightPx / 2
+
+                        if (enemyRight > charLeft && enemyLeft < charRight &&
+                            enemyBottom > charTop && enemyTop < charBottom
+                        ) {
+                            nx = enemy.x
+                            ny = enemy.y
+
+                            if (currentTime > currentImmuneUntil) {
+                                newHp -= 25
+                                playerImmuneUntil = currentTime + 3000L
+                            }
+                        }
+                        enemy.copy(x = nx, y = ny)
                     }
-                }
-                
-                enemy.copy(x = nx, y = ny)
-            }
-            
-            // Resolve overlap between enemies (circle-based for smooth sliding)
-            val minDist = enemyWidthPx
-            for (i in newEnemies.indices) {
-                for (j in i + 1 until newEnemies.size) {
-                    val e1 = newEnemies[i]
-                    val e2 = newEnemies[j]
-                    val dx = e2.x - e1.x
-                    val dy = e2.y - e1.y
-                    val dist2 = dx*dx + dy*dy
-                    if (dist2 < minDist * minDist && dist2 > 0) {
-                        val distance = sqrt(dist2.toDouble()).toFloat()
-                        val overlap = minDist - distance
-                        val pushX = (dx/distance) * overlap * 0.5f
-                        val pushY = (dy/distance) * overlap * 0.5f
-                        e1.x -= pushX
-                        e1.y -= pushY
-                        e2.x += pushX
-                        e2.y += pushY
+
+                    // Resolve overlap (Optimized: only if more than 1 enemy)
+                    val finalEnemies = if (movedEnemies.size > 1) {
+                        val result = movedEnemies.toMutableList()
+                        for (i in result.indices) {
+                            for (j in i + 1 until result.size) {
+                                val e1 = result[i]
+                                val e2 = result[j]
+                                val dx = e2.x - e1.x
+                                val dy = e2.y - e1.y
+                                val dist2 = dx * dx + dy * dy
+                                if (dist2 < enemyWidthPx * enemyWidthPx && dist2 > 0) {
+                                    val distance = sqrt(dist2.toDouble()).toFloat()
+                                    val overlap = enemyWidthPx - distance
+                                    val pushX = (dx / distance) * overlap * 0.5f
+                                    val pushY = (dy / distance) * overlap * 0.5f
+                                    result[i] = e1.copy(x = e1.x - pushX, y = e1.y - pushY)
+                                    result[j] = e2.copy(x = e2.x + pushX, y = e2.y + pushY)
+                                }
+                            }
+                        }
+                        result
+                    } else {
+                        movedEnemies
                     }
+
+                    hp = newHp
+                    enemies = finalEnemies
                 }
             }
-            
-                hp = newHp
-                enemies = newEnemies
-            }
-            
-            delay(16) // ~60 FPS
         }
     }
 
@@ -220,9 +221,8 @@ fun GameScreen(modifier: Modifier = Modifier) {
                         val distSq = dx*dx + dy*dy
                         // Check if it's a drag line (distance > 50) to prevent single tap
                         if (distSq > 2500f) {
-                            val l2 = distSq
                             val remainingEnemies = enemies.filterNot { enemy ->
-                                var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / l2
+                                var t = ((enemy.x - start.x) * dx + (enemy.y - start.y) * dy) / distSq
                                 t = max(0f, min(1f, t))
                                 val projX = start.x + t * dx
                                 val projY = start.y + t * dy
@@ -248,17 +248,19 @@ fun GameScreen(modifier: Modifier = Modifier) {
         SlashLineEffect(slashStart, slashEnd)
         SpawnZoneText()
         
-        enemies.forEach { enemy -> 
-            EnemyView(enemy, density, enemyWidthDp, enemyHeightDp) 
+        enemies.forEach { enemy ->
+            key(enemy.id) {
+                EnemyView(enemy, enemyWidthDp, enemyHeightDp)
+            }
         }
-        
+
         val isImmune = System.currentTimeMillis() < playerImmuneUntil
-        PlayerCharacterView(isImmune, density, characterX, characterY, characterWidthDp, characterHeightDp, hitboxchar)
+        PlayerCharacterView(isImmune, characterX, characterY, characterWidthDp, characterHeightDp, hitboxchar)
         
         GameHealthBar(hp, sp)
         
         if (hp <= 0) {
-            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            val activity = androidx.activity.compose.LocalActivity.current
             GameOverPanel(
                 onRestart = { hp = 100; sp = 100; enemies = emptyList(); playerImmuneUntil = 0L },
                 onMenu = { activity?.finish() }
@@ -270,7 +272,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
         }
 
         if (isPaused && hp > 0) {
-            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            val activity = androidx.activity.compose.LocalActivity.current
             PauseMenuPanel(
                 onResume = { isPaused = false },
                 onMenu = { activity?.finish() }
@@ -306,37 +308,35 @@ fun SpawnZoneText() {
 @Composable
 fun EnemyView(
     enemy: Enemy,
-    density: androidx.compose.ui.unit.Density,
     widthDp: androidx.compose.ui.unit.Dp,
     heightDp: androidx.compose.ui.unit.Dp
 ) {
     Image(
-        painter = painterResource(id = R.drawable.t_enemy),
+        painter = painterResource(id = R.drawable.n_enemy),
         contentDescription = "Enemy",
         modifier = Modifier
-            .offset(
-                x = with(density) { enemy.x.toDp() } - (widthDp / 2),
-                y = with(density) { enemy.y.toDp() } - (heightDp / 2)
-            )
             .size(width = widthDp, height = heightDp)
+            .graphicsLayer {
+                translationX = enemy.x - size.width / 2
+                translationY = enemy.y - size.height / 2
+            }
     )
 }
 
 @Composable
 fun PlayerCharacterView(
     isImmune: Boolean,
-    density: androidx.compose.ui.unit.Density,
     x: Float, y: Float,
     widthDp: androidx.compose.ui.unit.Dp, heightDp: androidx.compose.ui.unit.Dp,
     hitboxDp: androidx.compose.ui.unit.Dp
 ) {
     Box(
         modifier = Modifier
-            .offset(
-                x = with(density) { x.toDp() } - (widthDp / 2),
-                y = with(density) { y.toDp() } - (heightDp / 2)
-            )
-            .size(width = widthDp, height = heightDp),
+            .size(width = widthDp, height = heightDp)
+            .graphicsLayer {
+                translationX = x - size.width / 2
+                translationY = y - size.height / 2
+            },
         contentAlignment = Alignment.Center
     ) {
          Image(
