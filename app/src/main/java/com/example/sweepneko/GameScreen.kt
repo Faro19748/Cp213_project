@@ -53,7 +53,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val screenWidthPx = remember(configuration, density) { with(density) { configuration.screenWidthDp.dp.toPx() } }
     val screenHeightPx = remember(configuration, density) { with(density) { configuration.screenHeightDp.dp.toPx() } }
 
-    val sizechar = remember(configuration) { min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.6f }
+    val sizechar = remember(configuration) { min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.8f }
 
     val hitboxchar = remember(sizechar) { sizechar * 0.5f }
     val characterHitboxWidthPx = remember(hitboxchar, density) { with(density) { hitboxchar.toPx() } }
@@ -62,7 +62,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val characterSizePx = remember(sizechar, density) { with(density) { sizechar.toPx() } }
     
     val characterX = remember(screenWidthPx) { screenWidthPx / 2f }
-    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } }
+    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.3f).toPx() } }
 
     val shooterStopDistDraw = remember(density) { 450f * density.density }
     val shooterStopDistDrawSq = remember(shooterStopDistDraw) { shooterStopDistDraw * shooterStopDistDraw }
@@ -205,6 +205,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         .graphicsLayer {
                             translationX = enemy.x - enemy.widthPx / 2
                             translationY = enemy.y - enemy.heightPx / 2
+                            scaleX = if (enemy.isFlipped) -1f else 1f
                         }
                 )
             }

@@ -19,7 +19,8 @@ data class Enemy(
     var widthDp: Float = type.widthDp,
     var heightDp: Float = type.heightDp,
     var lastHitTime: Long = 0L,
-    var lastAttackTime: Long = 0L
+    var lastAttackTime: Long = 0L,
+    var isFlipped: Boolean = false
 ) {
     companion object {
         const val SPAWN_INTERVAL_MS = 2000L // ปรับอัตราการเกิด (มิลลิวินาที) เช่น 1000 = 1 วิ, 2000 = 2 วิ
@@ -47,17 +48,44 @@ data class Enemy(
 
             // 0 = Top, 1 = Left, 2 = Right
             when (side) {
-                0 -> { 
+                0 -> {
                     spawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
-                    spawnY = -eHeightPx * 2 // เพิ่มระยะให้สูงขึ้นไปอีก
+                    spawnY = -eHeightPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
                 }
-                1 -> { 
-                    spawnX = -eWidthPx * 2 // ขยับออกไปทางซ้ายมากขึ้น
-                    spawnY = (Math.random() * (screenHeightPx * 0.4f)).toFloat() // สุ่มในช่วง 40% บนของจอ
+                1 -> {
+                    spawnX = -eWidthPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
+                    // ปรับให้เกิดในช่วงที่สูงขึ้น (จากเหนือขอบบนเล็กน้อย ถึง 15% ของความสูงจอ)
+                    spawnY = (Math.random() * (screenHeightPx * 0.15f) - eHeightPx).toFloat()
+                    return Enemy(
+                        id = id,
+                        x = spawnX,
+                        y = spawnY,
+                        type = type,
+                        speed = type.speed,
+                        hp = type.initialHp,
+                        widthPx = eWidthPx,
+                        heightPx = eHeightPx,
+                        widthDp = type.widthDp,
+                        heightDp = type.heightDp,
+                        isFlipped = (type == EnemyType.NORMAL)
+                    )
                 }
-                else -> { 
-                    spawnX = screenWidthPx + eWidthPx * 2 // ขยับออกไปทางขวามากขึ้น
-                    spawnY = (Math.random() * (screenHeightPx * 0.4f)).toFloat() // สุ่มในช่วง 40% บนของจอ
+                else -> {
+                    spawnX = screenWidthPx + eWidthPx * 1.2f // ปรับให้ใกล้ขอบจอมากขึ้น
+                    spawnY = (Math.random() * (screenHeightPx * 0.15f) - eHeightPx).toFloat()
+                    return Enemy(
+                        id = id,
+                        x = spawnX,
+                        y = spawnY,
+                        type = type,
+                        speed = type.speed,
+                        hp = type.initialHp,
+                        widthPx = eWidthPx,
+                        heightPx = eHeightPx,
+                        widthDp = type.widthDp,
+                        heightDp = type.heightDp,
+                        isFlipped = false
+                    )
                 }
             }
 
@@ -71,7 +99,8 @@ data class Enemy(
                 widthPx = eWidthPx,
                 heightPx = eHeightPx,
                 widthDp = type.widthDp,
-                heightDp = type.heightDp
+                heightDp = type.heightDp,
+                isFlipped = false
             )
         }
     }
