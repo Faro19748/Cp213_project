@@ -93,8 +93,44 @@ class GameViewModel : ViewModel() {
             val newFadingSlashes = s.fadingSlashes.filter { currentTime - it.startTime < 400 }
             val newFadingEnemies = s.fadingEnemies.filter { currentTime - it.deathTime < 1000 }
 
+            // Wave Management
+            var newWave = s.wave
+            var newEnemiesKilledInWave = s.enemiesKilledInWave
+            var newTargetKillsForWave = s.targetKillsForWave
+
             val newEnemies = s.enemies.toMutableList()
             timeSinceLastSpawn += dt
+            
+            // Check for wave transition
+            if (newEnemiesKilledInWave >= newTargetKillsForWave) {
+                newWave++
+                newEnemiesKilledInWave = 0
+                newTargetKillsForWave += 5
+                
+                // Spawn Boss every 5 waves
+                if (newWave % 5 == 0) {
+                    spawnCount++
+                    val eWidthPx = EnemyType.BOSS.widthDp * pixelDensity
+                    val eHeightPx = EnemyType.BOSS.heightDp * pixelDensity
+                    val spawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
+                    val spawnY = -eHeightPx * 1.5f
+                    
+                    newEnemies.add(Enemy(
+                        id = spawnCount,
+                        x = spawnX,
+                        y = spawnY,
+                        type = EnemyType.BOSS,
+                        speed = EnemyType.BOSS.speed,
+                        hp = EnemyType.BOSS.initialHp,
+                        widthPx = eWidthPx,
+                        heightPx = eHeightPx,
+                        widthDp = EnemyType.BOSS.widthDp,
+                        heightDp = EnemyType.BOSS.heightDp,
+                        isFlipped = (spawnX < screenWidthPx / 2f)
+                    ))
+                }
+            }
+
             if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS && newEnemies.size < 15) {
                 spawnCount++
                 newEnemies.add(Enemy.createRandomSpawn(
@@ -241,7 +277,10 @@ class GameViewModel : ViewModel() {
                 isNextSlashRed = newIsNextSlashRed,
                 playerImmuneUntil = newPlayerImmuneUntil,
                 isUltimateActive = newIsUltimateActive,
-                isGameOver = newHp <= 0
+                isGameOver = newHp <= 0,
+                wave = newWave,
+                enemiesKilledInWave = newEnemiesKilledInWave,
+                targetKillsForWave = newTargetKillsForWave
             )
         }
     }
@@ -315,6 +354,8 @@ class GameViewModel : ViewModel() {
             val nextEnemies = mutableListOf<Enemy>()
             val newFadingEnemies = s.fadingEnemies.toMutableList()
             
+            var newEnemiesKilledInWave = s.enemiesKilledInWave
+
             s.enemies.forEach { enemy ->
                 val isHit = slashesToApply.any { (st, en) ->
                     isLineIntersectingRect(st, en, enemy.x - enemy.widthPx / 2, enemy.y - enemy.heightPx / 2, enemy.widthPx, enemy.heightPx)
@@ -325,6 +366,7 @@ class GameViewModel : ViewModel() {
                     val newEnemyHp = enemy.hp - dmg
                     if (newEnemyHp <= 0) {
                         killedInThisSlash++
+                        newEnemiesKilledInWave++
                         newFadingEnemies.add(FadingEnemy(enemy, currentTime))
                     } else {
                         nextEnemies.add(enemy.copy(hp = newEnemyHp, lastHitTime = currentTime))
@@ -369,8 +411,9 @@ class GameViewModel : ViewModel() {
                 comboCount = newComboCount,
                 ultimateGauge = newUltimateGauge,
                 stamina = newStamina,
-                isNextSlashRed = (newComboCount > 0 && newComboCount % 5 == 0),
-                isUltimateActive = false
+                isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
+                isUltimateActive = false,
+                enemiesKilledInWave = newEnemiesKilledInWave
             )
         }
     }

@@ -21,5 +21,8 @@ data class GameState(
     val slashEnd: Offset? = null,
     val isPaused: Boolean = false,
     val isGameOver: Boolean = false,
-    val playerImmuneUntil: Long = 0L
+    val playerImmuneUntil: Long = 0L,
+    val wave: Int = 1,
+    val enemiesKilledInWave: Int = 0,
+    val targetKillsForWave: Int = 15
 )

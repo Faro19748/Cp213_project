@@ -144,11 +144,19 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             .build(), 
         imageLoader = imageLoader
     )
+    val bossPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.boss)
+            .size(800)
+            .build(), 
+        imageLoader = imageLoader
+    )
 
     val deadFastPainter = painterResource(id = R.drawable.d_sm_enemy)
     val deadBigPainter = painterResource(id = R.drawable.d_b_enemy)
     val deadShootPainter = painterResource(id = R.drawable.d_s_enemy)
     val deadNormalPainter = painterResource(id = R.drawable.d_n_enemy)
+    val deadBossPainter = painterResource(id = R.drawable.d_boss)
 
     Box(modifier = modifier
         .fillMaxSize()
@@ -209,6 +217,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         EnemyType.FAST -> fastEnemyPainter
                         EnemyType.BIG -> bigEnemyPainter
                         EnemyType.SHOOTING -> if (isMoving) shootEnemyMovePainter else shootEnemyIdlePainter
+                        EnemyType.BOSS -> bossPainter
                         else -> normalEnemyPainter
                     }
                     
@@ -235,6 +244,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         EnemyType.FAST -> deadFastPainter
                         EnemyType.BIG -> deadBigPainter
                         EnemyType.SHOOTING -> deadShootPainter
+                        EnemyType.BOSS -> deadBossPainter
                         else -> deadNormalPainter
                     }
                     Image(
@@ -246,6 +256,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             .graphicsLayer {
                                 translationX = fading.enemy.x - fading.enemy.widthPx / 2
                                 translationY = fading.enemy.y - fading.enemy.heightPx / 2
+                                scaleX = if (fading.enemy.isFlipped) -1f else 1f
                             }
                     )
                 }
@@ -379,6 +390,22 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
 
             if (!state.isGameOver && !state.isPaused) {
                 Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    // Wave Info
+                    Column(modifier = Modifier.align(Alignment.TopCenter), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Wave ${state.wave}",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Kills: ${state.enemiesKilledInWave} / ${state.targetKillsForWave}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.LightGray
+                        )
+                    }
+
                     Box(
                         modifier = Modifier.align(Alignment.BottomStart),
                         contentAlignment = Alignment.Center

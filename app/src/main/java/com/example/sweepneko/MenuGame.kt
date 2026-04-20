@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +80,34 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         imageLoader = imageLoader
     )
 
+    val logoPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.logo)
+            .build(), 
+        imageLoader = imageLoader
+    )
+
+    // Logo Animation
+    val infiniteTransition = rememberInfiniteTransition(label = "logo_anim")
+    val translateY by infiniteTransition.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "y"
+    )
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rotation"
+    )
+
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
@@ -115,11 +145,18 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         ) {
             Spacer(modifier = Modifier.height(32.dp))
             
-            // 1. Game Name (Top Center)
-            Text(
-                text = "SweepNeko",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold
+            // 1. Logo (Top Center)
+            Image(
+                painter = logoPainter,
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .height(180.dp)
+                    .fillMaxWidth(1f)
+                    .graphicsLayer {
+                        translationY = translateY
+                        rotationZ = rotation
+                    },
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
             )
 
             // 2. Character Image (Center)
