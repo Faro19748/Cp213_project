@@ -1,10 +1,10 @@
 package com.example.sweepneko
 
 enum class EnemyType(val initialHp: Int, val speed: Float, val widthDp: Float, val heightDp: Float) {
-    NORMAL(initialHp = 1, speed = 4f, widthDp = 60f, heightDp = 60f),
-    FAST(initialHp = 1, speed = 8f, widthDp = 40f, heightDp = 40f),
-    BIG(initialHp = 3, speed = 2f, widthDp = 120f, heightDp = 120f),
-    SHOOTING(initialHp = 1, speed = 4f, widthDp = 70f, heightDp = 70f)
+    NORMAL(initialHp = 1, speed = 3f, widthDp = 80f, heightDp = 80f),
+    FAST(initialHp = 1, speed = 5f, widthDp = 60f, heightDp = 60f),
+    BIG(initialHp = 3, speed = 2f, widthDp = 150f, heightDp = 150f),
+    SHOOTING(initialHp = 1, speed = 3f, widthDp = 100f, heightDp = 100f)
 }
 
 data class Enemy(
