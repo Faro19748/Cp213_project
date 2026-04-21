@@ -16,6 +16,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.math.cos
 import kotlin.math.sin
+import android.content.Context
 
 class GameViewModel : ViewModel() {
 
@@ -346,6 +347,7 @@ class GameViewModel : ViewModel() {
         if (newState.isGameOver && !prevState.isGameOver) {
             SoundManager.playSFX("bomb")
             SoundManager.playGameOverMusic()
+            saveHighScore(newState.wave)
         }
         
         // After state update, check for boss presence to manage music
@@ -556,6 +558,15 @@ class GameViewModel : ViewModel() {
                 SoundManager.playUltMusic()
                 s.copy(isUltimateActive = true, ultimateGauge = 0f, stamina = min(100f, s.stamina + 50f))
             } else s
+        }
+    }
+
+    private fun saveHighScore(wave: Int) {
+        val context = SoundManager.getContext() ?: return
+        val prefs = context.getSharedPreferences("SweepNekoPrefs", Context.MODE_PRIVATE)
+        val currentHigh = prefs.getInt("high_score_wave", 1)
+        if (wave > currentHigh) {
+            prefs.edit().putInt("high_score_wave", wave).apply()
         }
     }
 

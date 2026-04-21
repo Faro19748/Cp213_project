@@ -12,6 +12,8 @@ object SoundManager {
     private var bossPlayer: MediaPlayer? = null
     private var menuPlayer: MediaPlayer? = null
     private var gameOverPlayer: MediaPlayer? = null
+    
+    private var appContext: Context? = null
 
     private var soundPool: SoundPool? = null
     private val sounds = mutableMapOf<String, Int>()
@@ -24,6 +26,7 @@ object SoundManager {
     val sfxVolumeSnapshot: State<Float> = _sfxVolume
 
     fun init(context: Context) {
+        appContext = context.applicationContext
         if (soundPool != null) return
 
         val audioAttributes = AudioAttributes.Builder()
@@ -146,6 +149,8 @@ object SoundManager {
         val goVol = minOf(1.0f, vol * 2.5f)
         gameOverPlayer?.setVolume(goVol, goVol)
     }
+
+    fun getContext(): Context? = appContext
 
     fun release() {
         stopAllMusic()

@@ -229,46 +229,97 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     if (showSettingDialog) {
         AlertDialog(
             onDismissRequest = { showSettingDialog = false },
-            title = { Text(text = "Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold) },
+            containerColor = Color(0xFFEAB676),
+            title = { Text(text = "Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     // BGM Volume
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Text(text = "Background Music", fontWeight = FontWeight.Medium)
+                            Text(text = "Background Music", fontWeight = FontWeight.Medium, color = Color.Black)
                             TextButton(onClick = { /* BGM updated automatically via slider */ }) {
-                                Text("Preview")
+                                Text("Preview", color = Color(0xFF887164))
                             }
                         }
-                        Slider(
-                            value = SoundManager.bgmVolumeSnapshot.value,
-                            onValueChange = { SoundManager.setBGMVolume(it) },
-                            valueRange = 0f..1f
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // 3D Track Effect (Shadow/Bottom Layer)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(12.dp)
+                                    .offset(y = 2.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                            )
+                            
+                            Slider(
+                                value = SoundManager.bgmVolumeSnapshot.value,
+                                onValueChange = { SoundManager.setBGMVolume(it) },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF887164),
+                                    activeTrackColor = Color(0xFF887164),
+                                    inactiveTrackColor = Color(0xFF887164).copy(alpha = 0.3f),
+                                    activeTickColor = Color.Transparent,
+                                    inactiveTickColor = Color.Transparent
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     
                     // SFX Volume
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Text(text = "Sound Effects", fontWeight = FontWeight.Medium)
+                            Text(text = "Sound Effects", fontWeight = FontWeight.Medium, color = Color.Black)
                             TextButton(onClick = { SoundManager.playSFX("slash") }) {
-                                Text("Test SFX")
+                                Text("Test SFX", color = Color(0xFF887164))
                             }
                         }
-                        Slider(
-                            value = SoundManager.sfxVolumeSnapshot.value,
-                            onValueChange = { SoundManager.setSFXVolume(it) },
-                            valueRange = 0f..1f
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // 3D Track Effect (Shadow/Bottom Layer)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(12.dp)
+                                    .offset(y = 2.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                            )
+                            
+                            Slider(
+                                value = SoundManager.sfxVolumeSnapshot.value,
+                                onValueChange = { SoundManager.setSFXVolume(it) },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF887164),
+                                    activeTrackColor = Color(0xFF887164),
+                                    inactiveTrackColor = Color(0xFF887164).copy(alpha = 0.3f),
+                                    activeTickColor = Color.Transparent,
+                                    inactiveTickColor = Color.Transparent
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showSettingDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF887164))
                 ) {
-                    Text("Close", color = Color.Black)
+                    Text("Close", color = Color.White)
                 }
             }
         )
@@ -356,6 +407,27 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             }
             
             Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        // High Score Display (Bottom Left)
+        val activity = (LocalContext.current as? Activity)
+        val prefs = remember { activity?.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
+        val highScore = remember { prefs?.getInt("high_score_wave", 1) ?: 1 }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black.copy(alpha = 0.5f))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "BEST WAVE: $highScore",
+                color = Color(0xFFFFD700), // Gold Color
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
