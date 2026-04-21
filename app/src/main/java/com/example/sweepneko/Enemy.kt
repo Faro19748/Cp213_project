@@ -80,7 +80,7 @@ data class Enemy(
                         heightPx = eHeightPx,
                         widthDp = type.widthDp,
                         heightDp = type.heightDp,
-                        isFlipped = (type == EnemyType.NORMAL)
+                        isFlipped = (type == EnemyType.NORMAL || type == EnemyType.BIG)
                     )
                 }
                 else -> {
