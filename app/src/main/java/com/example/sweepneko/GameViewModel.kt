@@ -131,7 +131,8 @@ class GameViewModel : ViewModel() {
                 }
             }
 
-            if (timeSinceLastSpawn >= Enemy.SPAWN_INTERVAL_MS && newEnemies.size < 15) {
+            val spawnInterval = max(500L, 2000L - (newWave - 1) * 100L)
+            if (timeSinceLastSpawn >= spawnInterval && newEnemies.size < 15) {
                 spawnCount++
                 newEnemies.add(Enemy.createRandomSpawn(
                     id = spawnCount,
