@@ -187,7 +187,7 @@ class GameViewModel : ViewModel() {
                     pny + pRadius > charTop && pny - pRadius < charBottom) {
                     if (currentTime > newPlayerImmuneUntil) {
                         newHp -= 15
-                        newPlayerImmuneUntil = currentTime + 3000L
+                        newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
                     }
@@ -234,7 +234,7 @@ class GameViewModel : ViewModel() {
                     ny = enemy.y
                     if (currentTime > newPlayerImmuneUntil) {
                         newHp -= 25
-                        newPlayerImmuneUntil = currentTime + 3000L
+                        newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
                     }
