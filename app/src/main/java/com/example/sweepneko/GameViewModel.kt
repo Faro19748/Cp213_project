@@ -17,6 +17,7 @@ import kotlin.math.sqrt
 import kotlin.math.cos
 import kotlin.math.sin
 import android.content.Context
+import androidx.core.content.edit
 
 class GameViewModel : ViewModel() {
 
@@ -79,11 +80,11 @@ class GameViewModel : ViewModel() {
 
             var newHp = s.hp
             var newStamina = s.stamina
-            var newUltimateGauge = s.ultimateGauge
+            val newUltimateGauge = s.ultimateGauge
             var newComboCount = s.comboCount
             var newIsNextSlashRed = s.isNextSlashRed
             var newPlayerImmuneUntil = s.playerImmuneUntil
-            var newIsUltimateActive = s.isUltimateActive
+            val newIsUltimateActive = s.isUltimateActive
 
             if (newComboCount > 0 && currentTime - lastEnemyHitTime > 3000L) {
                 newComboCount = 0
@@ -146,9 +147,8 @@ class GameViewModel : ViewModel() {
             val newPowerUps = s.powerUps.toMutableList()
             if (newWave > s.wave) {
                 spawnCount++
-                val puType = PowerUpType.values().random()
+                val puType = PowerUpType.entries.random()
                 val puWidthPx = 60f * pixelDensity
-                val puHeightPx = 60f * pixelDensity
                 val spawnX = (Math.random() * (screenWidthPx - puWidthPx) + puWidthPx / 2f).toFloat()
                 val spawnY = (Math.random() * (screenHeightPx * 0.5f) + screenHeightPx * 0.2f).toFloat()
                 
@@ -169,8 +169,8 @@ class GameViewModel : ViewModel() {
 
             // Update PowerUp positions
             val updatedPowerUps = newPowerUps.map { pu ->
-                var nx = pu.x + pu.dx
-                var ny = pu.y + pu.dy
+                val nx = pu.x + pu.dx
+                val ny = pu.y + pu.dy
                 var ndx = pu.dx
                 var ndy = pu.dy
 
@@ -520,15 +520,13 @@ class GameViewModel : ViewModel() {
                         isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
                     }
                 },
-                inventory = if (s.inventory.isEmpty()) {
+                inventory = s.inventory.ifEmpty {
                     val hitPowerUps = s.powerUps.filter { pu ->
                         slashesToApply.any { (st, en) ->
                             isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
                         }
                     }
                     if (hitPowerUps.isNotEmpty()) s.inventory + hitPowerUps.first().type else s.inventory
-                } else {
-                    s.inventory
                 }
             ).also {
                 if (s.isUltimateActive) {
@@ -566,7 +564,9 @@ class GameViewModel : ViewModel() {
         val prefs = context.getSharedPreferences("SweepNekoPrefs", Context.MODE_PRIVATE)
         val currentHigh = prefs.getInt("high_score_wave", 1)
         if (wave > currentHigh) {
-            prefs.edit().putInt("high_score_wave", wave).apply()
+            prefs.edit {
+                putInt("high_score_wave", wave)
+            }
         }
     }
 
