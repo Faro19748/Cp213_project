@@ -272,16 +272,19 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     MenuText(
                         text = "PLAY",
                         color = Color.Black,
+                        delay = 0,
                         onClick = { isStarting = true }
                     )
                     MenuText(
                         text = "SETTING",
                         color = Color.Black,
+                        delay = 200,
                         onClick = { /* TODO: Setting Action */ }
                     )
                     MenuText(
                         text = "EXIT",
                         color = Color.Red,
+                        delay = 400,
                         onClick = { showExitDialog = true }
                     )
                 }
@@ -299,6 +302,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
 fun MenuText(
     text: String,
     color: Color,
+    delay: Int = 0,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -307,6 +311,22 @@ fun MenuText(
         targetValue = if (isPressed) 0.85f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "scale"
+    )
+
+    // Floating animation
+    val infiniteTransition = rememberInfiniteTransition(label = "floating")
+    val offsetTransition by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1500,
+                delayMillis = delay,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floating_offset"
     )
 
     Text(
@@ -318,6 +338,7 @@ fun MenuText(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                translationY = offsetTransition
             }
             .clickable(
                 interactionSource = interactionSource,
@@ -326,4 +347,10 @@ fun MenuText(
             )
             .padding(vertical = 8.dp, horizontal = 16.dp)
     )
+}
+
+// Custom Easing for a smoother wave-like motion
+val SineWaveEasing = Easing { fraction ->
+    val sinValue = kotlin.math.sin(fraction * kotlin.math.PI)
+    sinValue.toFloat()
 }
