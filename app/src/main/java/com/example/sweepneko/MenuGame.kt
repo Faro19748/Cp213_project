@@ -57,6 +57,7 @@ class MenuGame : ComponentActivity() {
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
 
         enableEdgeToEdge()
+        SoundManager.init(this)
         setContent {
             SweepNekoTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
@@ -65,11 +66,17 @@ class MenuGame : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        SoundManager.playMenuMusic()
+    }
 }
 
 @Composable
 fun GameMenuScreen(modifier: Modifier = Modifier) {
     var showExitDialog by remember { mutableStateOf(false) }
+    var showSettingDialog by remember { mutableStateOf(false) }
     var isStarting by remember { mutableStateOf(false) }
     val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
@@ -219,6 +226,54 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         )
     }
 
+    if (showSettingDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingDialog = false },
+            title = { Text(text = "Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // BGM Volume
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text(text = "Background Music", fontWeight = FontWeight.Medium)
+                            TextButton(onClick = { /* BGM updated automatically via slider */ }) {
+                                Text("Preview")
+                            }
+                        }
+                        Slider(
+                            value = SoundManager.bgmVolumeSnapshot.value,
+                            onValueChange = { SoundManager.setBGMVolume(it) },
+                            valueRange = 0f..1f
+                        )
+                    }
+                    
+                    // SFX Volume
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text(text = "Sound Effects", fontWeight = FontWeight.Medium)
+                            TextButton(onClick = { SoundManager.playSFX("slash") }) {
+                                Text("Test SFX")
+                            }
+                        }
+                        Slider(
+                            value = SoundManager.sfxVolumeSnapshot.value,
+                            onValueChange = { SoundManager.setSFXVolume(it) },
+                            valueRange = 0f..1f
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSettingDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                ) {
+                    Text("Close", color = Color.Black)
+                }
+            }
+        )
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Image(
             painter = bgPainter,
@@ -285,7 +340,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                         color = Color.Black,
                         backgroundColor = Color(0xFFEAB676),
                         delay = 200,
-                        onClick = { /* TODO: Setting Action */ }
+                        onClick = { showSettingDialog = true }
                     )
                     MenuText(
                         text = "EXIT",

@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
@@ -42,6 +43,7 @@ class GameViewModel : ViewModel() {
         gameLoopJob = viewModelScope.launch(Dispatchers.Default) {
             var lastFrameTime = System.nanoTime()
             nextSwarmTime = System.currentTimeMillis() + 10000L
+            SoundManager.playMainMusic()
 
             while (true) {
                 if (_state.value.isGameOver) break
@@ -70,8 +72,9 @@ class GameViewModel : ViewModel() {
     }
 
     private fun updateGameState(currentTime: Long, dt: Long) {
-        _state.update { s ->
-            if (s.isGameOver || s.isPaused) return@update s
+        val prevState = _state.value
+        val newState = _state.updateAndGet { s ->
+            if (s.isGameOver || s.isPaused) return@updateAndGet s
 
             var newHp = s.hp
             var newStamina = s.stamina
@@ -135,6 +138,7 @@ class GameViewModel : ViewModel() {
                         heightDp = EnemyType.BOSS.heightDp,
                         isFlipped = (bSpawnX < screenWidthPx / 2f)
                     ))
+                    SoundManager.playBossMusic()
                 }
             }
 
@@ -238,6 +242,7 @@ class GameViewModel : ViewModel() {
                         newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
+                        SoundManager.playSFX("takedamage")
                     }
                 } else if (pnx > -200f && pnx < screenWidthPx + 200f && pny > -200f && pny < screenHeightPx + 200f) {
                     remainingProjectiles.add(p.copy(x = pnx, y = pny))
@@ -286,6 +291,7 @@ class GameViewModel : ViewModel() {
                         newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
+                        SoundManager.playSFX("takedamage")
                     }
                 }
                 nextEnemiesList.add(enemy.copy(x = nx, y = ny, lastAttackTime = updatedLastAttackTime))
@@ -336,6 +342,18 @@ class GameViewModel : ViewModel() {
                 enemySlowUntil = s.enemySlowUntil
             )
         }
+        
+        if (newState.isGameOver && !prevState.isGameOver) {
+            SoundManager.playSFX("bomb")
+            SoundManager.playGameOverMusic()
+        }
+        
+        // After state update, check for boss presence to manage music
+        val s = _state.value
+        val hasBoss = s.enemies.any { it.type == EnemyType.BOSS }
+        if (!hasBoss && !s.isGameOver) {
+            SoundManager.stopBossMusic()
+        }
     }
 
     fun usePowerUp(type: PowerUpType) {
@@ -346,6 +364,7 @@ class GameViewModel : ViewModel() {
             
             val newInventory = s.inventory.toMutableList()
             newInventory.removeAt(index)
+            SoundManager.playSFX("use")
             
             when (type) {
                 PowerUpType.CAT_CAN -> {
@@ -392,6 +411,7 @@ class GameViewModel : ViewModel() {
             val distSq = dx*dx + dy*dy
             if (distSq > 2500f) {
                 performSlash(start, end)
+                SoundManager.playSFX("slash")
             }
         }
         _state.update { it.copy(slashStart = null, slashEnd = null) }
@@ -444,6 +464,9 @@ class GameViewModel : ViewModel() {
                         killedInThisSlash++
                         newEnemiesKilledInWave++
                         newFadingEnemies.add(FadingEnemy(enemy, currentTime))
+                        if (enemy.type == EnemyType.BOSS) {
+                            SoundManager.playSFX("mama")
+                        }
                     } else {
                         nextEnemies.add(enemy.copy(hp = newEnemyHp, lastHitTime = currentTime))
                     }
@@ -505,7 +528,11 @@ class GameViewModel : ViewModel() {
                 } else {
                     s.inventory
                 }
-            )
+            ).also {
+                if (s.isUltimateActive) {
+                    SoundManager.stopUltMusic()
+                }
+            }
         }
     }
 
@@ -516,6 +543,7 @@ class GameViewModel : ViewModel() {
     fun pauseGame() { _state.update { it.copy(isPaused = true) } }
     fun resumeGame() { _state.update { it.copy(isPaused = false) } }
     fun restartGame() { 
+        SoundManager.stopAllMusic()
         _state.value = GameState()
         spawnCount = 0L
         timeSinceLastSpawn = 0L
@@ -525,6 +553,7 @@ class GameViewModel : ViewModel() {
     fun activateUltimate() {
         _state.update { s ->
             if (!s.isUltimateActive && s.ultimateGauge >= 100f) {
+                SoundManager.playUltMusic()
                 s.copy(isUltimateActive = true, ultimateGauge = 0f, stamina = min(100f, s.stamina + 50f))
             } else s
         }

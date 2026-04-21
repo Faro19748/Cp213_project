@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -161,6 +162,24 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val deadShootPainter = painterResource(id = R.drawable.d_s_enemy)
     val deadNormalPainter = painterResource(id = R.drawable.d_n_enemy)
     val deadBossPainter = painterResource(id = R.drawable.d_boss)
+    
+    val bombPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bomb)
+            .build(), 
+        imageLoader = imageLoader
+    )
+
+    var showBomb by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.isGameOver) {
+        if (state.isGameOver) {
+            showBomb = true
+            delay(1000)
+            showBomb = false
+            SoundManager.playGameOverMusic()
+        }
+    }
 
     Box(modifier = modifier
         .fillMaxSize()
@@ -298,8 +317,12 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                     },
                 contentAlignment = Alignment.Center
             ) {
-                 Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
-                 Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
+                 if (showBomb) {
+                    Image(painter = bombPainter, contentDescription = "Bomb", modifier = Modifier.fillMaxSize())
+                 } else if (!state.isGameOver) {
+                    Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
+                    Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
+                 }
             }
             
             if (state.slashStart != null && state.slashEnd != null || state.fadingSlashes.isNotEmpty()) {
