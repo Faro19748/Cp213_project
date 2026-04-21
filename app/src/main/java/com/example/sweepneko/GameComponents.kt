@@ -293,16 +293,20 @@ fun GameOverMenu(onRestart: () -> Unit, onMenu: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "GAME OVER", color = Color.Red, fontSize = 48.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onRestart, modifier = Modifier.width(200.dp).height(50.dp)) {
-                Text("Restart", fontSize = 20.sp)
+            Button(
+                onClick = onRestart,
+                modifier = Modifier.width(200.dp).height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+            ) {
+                Text("Restart", fontSize = 20.sp, color = Color.White)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onMenu,
                 modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
             ) {
-                Text("Menu", fontSize = 20.sp)
+                Text("Menu", fontSize = 20.sp, color = Color.White)
             }
         }
     }
