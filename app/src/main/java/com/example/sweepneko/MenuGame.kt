@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import com.example.sweepneko.ui.theme.SweepNekoTheme
 import kotlin.math.min
 
@@ -263,42 +266,24 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             if (!isStarting) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.offset(y = (-40).dp)
                 ) {
-                    // 3. Play Button
-                    Button(
-                        onClick = { isStarting = true },
-                        modifier = Modifier
-                            .width(240.dp)
-                            .height(60.dp),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(text = "Play", fontSize = 24.sp)
-                    }
-
-                    // 4. Setting Button
-                    Button(
-                        onClick = { /* TODO: Setting Action */ },
-                        modifier = Modifier
-                            .width(240.dp)
-                            .height(60.dp),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(text = "Setting", fontSize = 24.sp)
-                    }
-                    
-                    // 5. Exit Button with confirmation
-                    Button(
-                        onClick = { showExitDialog = true },
-                        modifier = Modifier
-                            .width(240.dp)
-                            .height(60.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text(text = "Exit", fontSize = 24.sp)
-                    }
+                    MenuText(
+                        text = "PLAY",
+                        color = Color.Black,
+                        onClick = { isStarting = true }
+                    )
+                    MenuText(
+                        text = "SETTING",
+                        color = Color.Black,
+                        onClick = { /* TODO: Setting Action */ }
+                    )
+                    MenuText(
+                        text = "EXIT",
+                        color = Color.Red,
+                        onClick = { showExitDialog = true }
+                    )
                 }
             } else {
                 // Spacer to maintain layout while buttons are hidden
@@ -308,4 +293,37 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+fun MenuText(
+    text: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+
+    Text(
+        text = text,
+        fontSize = 32.sp,
+        fontWeight = FontWeight.Black,
+        color = color,
+        modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null, // Remove default ripple for cleaner look
+                onClick = onClick
+            )
+            .padding(vertical = 8.dp, horizontal = 16.dp)
+    )
 }
