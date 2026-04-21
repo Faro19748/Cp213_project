@@ -6,10 +6,10 @@ data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, 
 data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 data class FadingEnemy(val enemy: Enemy, val deathTime: Long)
 
-enum class PowerUpType(val imageRes: String) {
-    CAT_CAN("catcan.png"),
-    CAT_BAR("catbar.png"),
-    TIME_STOP("time.png")
+enum class PowerUpType {
+    CAT_CAN,
+    CAT_BAR,
+    TIME_STOP
 }
 
 data class PowerUp(

@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,7 +21,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.*
-import androidx.compose.animation.Animatable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
@@ -60,8 +60,8 @@ class MenuGame : ComponentActivity() {
         SoundManager.init(this)
         setContent {
             SweepNekoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                    GameMenuScreen()
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    GameMenuScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -78,7 +78,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     var showExitDialog by remember { mutableStateOf(false) }
     var showSettingDialog by remember { mutableStateOf(false) }
     var isStarting by remember { mutableStateOf(false) }
-    val activity = (LocalContext.current as? Activity)
+    val activity = LocalActivity.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -115,12 +115,9 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     val imageLoader = remember {
         ImageLoader.Builder(context)
             .components {
-                if (SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
-                }
+                add(ImageDecoderDecoder.Factory())
             }
+            .crossfade(true)
             .build()
     }
 
@@ -410,8 +407,8 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         }
 
         // High Score Display (Bottom Left)
-        val activity = (LocalContext.current as? Activity)
-        val prefs = remember { activity?.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
+        val activityLocal = LocalActivity.current
+        val prefs = remember { activityLocal?.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
         val highScore = remember { prefs?.getInt("high_score_wave", 1) ?: 1 }
 
         Box(
@@ -463,8 +460,6 @@ fun MenuText(
         ),
         label = "floating_offset"
     )
-
-    val shadowColor = color.copy(alpha = 0.3f)
 
     Box(
         modifier = Modifier
