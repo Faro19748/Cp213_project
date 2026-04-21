@@ -373,13 +373,20 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                 }
             }
 
-            HpStaminaBar(
-                hp = state.hp, 
-                stamina = state.stamina, 
-                ultimateGauge = state.ultimateGauge, 
-                comboCount = state.comboCount, 
-                isNextSlashRed = state.isNextSlashRed
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp)
+            ) {
+                HpStaminaBar(
+                    hp = state.hp, 
+                    stamina = state.stamina, 
+                    ultimateGauge = state.ultimateGauge, 
+                    comboCount = state.comboCount, 
+                    isNextSlashRed = state.isNextSlashRed,
+                    wave = state.wave,
+                    enemiesKilled = state.enemiesKilledInWave,
+                    targetKills = state.targetKillsForWave
+                )
+            }
             
             if (state.isGameOver) {
                 GameOverMenu(
@@ -390,21 +397,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
 
             if (!state.isGameOver && !state.isPaused) {
                 Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                    // Wave Info
-                    Column(modifier = Modifier.align(Alignment.TopCenter), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Wave ${state.wave}",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Kills: ${state.enemiesKilledInWave} / ${state.targetKillsForWave}",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.LightGray
-                        )
-                    }
+                    // Wave Info will be drawn inside HpStaminaBar now or nearby
 
                     Box(
                         modifier = Modifier.align(Alignment.BottomStart),

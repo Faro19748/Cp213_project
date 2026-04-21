@@ -1,13 +1,15 @@
 package com.example.sweepneko
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,7 +22,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 
 @Composable
-fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int, isNextSlashRed: Boolean) {
+fun HpStaminaBar(
+    hp: Int,
+    stamina: Float,
+    ultimateGauge: Float,
+    comboCount: Int,
+    isNextSlashRed: Boolean,
+    wave: Int = 1,
+    enemiesKilled: Int = 0,
+    targetKills: Int = 15
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -65,14 +76,17 @@ fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int,
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
-        // SP Bar Row (Stamina)
+        // SP Bar Row (Stamina) + Wave Info
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(0.7f)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Box(contentAlignment = Alignment.CenterStart) {
+            Box(
+                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier.weight(0.6f)
+            ) {
                 CustomBar(
                     progress = stamina / 100f,
                     barColor = Color(0xFFFFCA28), // Electric Yellow
@@ -91,17 +105,60 @@ fun HpStaminaBar(hp: Int, stamina: Float, ultimateGauge: Float, comboCount: Int,
                         .offset(x = (-6).dp)
                 )
             }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            // Wave Info next to SP bar
+            Column(
+                horizontalAlignment = Alignment.Start,
+                modifier = Modifier.weight(0.4f)
+            ) {
+                Text(
+                    text = "Wave $wave",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF887164)
+                )
+                Text(
+                    text = "Kills: $enemiesKilled / $targetKills",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF887164).copy(alpha = 0.8f)
+                )
+            }
         }
         
         if (comboCount > 0) {
             Spacer(modifier = Modifier.height(16.dp))
             val comboColor = if (isNextSlashRed) Color(0xFFE07A7A) else Color(0xFFFF9800)
+            
+            // Animation for bouncing effect when combo increases
+            val scale = remember { Animatable(1f) }
+            LaunchedEffect(comboCount) {
+                scale.animateTo(
+                    targetValue = 1.4f,
+                    animationSpec = tween(durationMillis = 50, easing = FastOutSlowInEasing)
+                )
+                scale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+
             Text(
                 text = "Hit: $comboCount",
                 fontSize = 28.sp, 
                 fontWeight = FontWeight.Black, 
                 color = comboColor,
-                modifier = Modifier.padding(start = 16.dp)
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                    }
             )
         }
     }
@@ -234,7 +291,7 @@ fun GameOverMenu(onRestart: () -> Unit, onMenu: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "GAME OVER", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+            Text(text = "GAME OVER", color = Color.Red, fontSize = 48.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = onRestart, modifier = Modifier.width(200.dp).height(50.dp)) {
                 Text("Restart", fontSize = 20.sp)
@@ -262,14 +319,18 @@ fun PauseMenu(onResume: () -> Unit, onMenu: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "PAUSED", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(32.dp))
-            Button(onClick = onResume, modifier = Modifier.width(200.dp).height(50.dp)) {
+            Button(
+                onClick = onResume,
+                modifier = Modifier.width(200.dp).height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+            ) {
                 Text("Resume", fontSize = 20.sp)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onMenu,
                 modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
             ) {
                 Text("Menu", fontSize = 20.sp)
             }

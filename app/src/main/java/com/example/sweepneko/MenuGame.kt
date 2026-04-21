@@ -7,10 +7,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
@@ -272,18 +276,21 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     MenuText(
                         text = "PLAY",
                         color = Color.Black,
+                        backgroundColor = Color(0xFFEAB676),
                         delay = 0,
                         onClick = { isStarting = true }
                     )
                     MenuText(
                         text = "SETTING",
                         color = Color.Black,
+                        backgroundColor = Color(0xFFEAB676),
                         delay = 200,
                         onClick = { /* TODO: Setting Action */ }
                     )
                     MenuText(
                         text = "EXIT",
-                        color = Color.Red,
+                        color = Color.White,
+                        backgroundColor = Color(0xFFE53935),
                         delay = 400,
                         onClick = { showExitDialog = true }
                     )
@@ -303,12 +310,13 @@ fun MenuText(
     text: String,
     color: Color,
     delay: Int = 0,
+    backgroundColor: Color = Color(0xFFEAB676),
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.85f else 1f,
+        targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "scale"
     )
@@ -329,11 +337,9 @@ fun MenuText(
         label = "floating_offset"
     )
 
-    Text(
-        text = text,
-        fontSize = 32.sp,
-        fontWeight = FontWeight.Black,
-        color = color,
+    val shadowColor = color.copy(alpha = 0.3f)
+
+    Box(
         modifier = Modifier
             .graphicsLayer {
                 scaleX = scale
@@ -342,11 +348,38 @@ fun MenuText(
             }
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // Remove default ripple for cleaner look
+                indication = null,
                 onClick = onClick
             )
-            .padding(vertical = 8.dp, horizontal = 16.dp)
-    )
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Shadow/Bottom Layer for 3D effect
+        Box(
+            modifier = Modifier
+                .offset(y = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(backgroundColor.copy(alpha = 0.7f))
+                .matchParentSize()
+        )
+        
+        // Main Button Surface
+        Box(
+            modifier = Modifier
+                .offset(y = if (isPressed) 2.dp else 0.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(backgroundColor)
+                .border(2.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                .padding(vertical = 12.dp, horizontal = 32.dp)
+        ) {
+            Text(
+                text = text,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                color = color
+            )
+        }
+    }
 }
 
 // Custom Easing for a smoother wave-like motion
