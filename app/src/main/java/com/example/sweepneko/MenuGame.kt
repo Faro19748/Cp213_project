@@ -1,6 +1,5 @@
 package com.example.sweepneko
 
-import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,9 +20,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.*
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -39,10 +38,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import com.example.sweepneko.ui.theme.SweepNekoTheme
 import kotlin.math.min
 
-import android.os.Build.VERSION.SDK_INT
 import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
-import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
 
@@ -75,21 +72,20 @@ class MenuGame : ComponentActivity() {
 
 @Composable
 fun GameMenuScreen(modifier: Modifier = Modifier) {
-    var showExitDialog by remember { mutableStateOf(false) }
-    var showSettingDialog by remember { mutableStateOf(false) }
+    val showExitDialog = remember { mutableStateOf(false) }
+    val showSettingDialog = remember { mutableStateOf(false) }
     var isStarting by remember { mutableStateOf(false) }
     val activity = LocalActivity.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    val characterYTargetPx = remember(density, configuration) { 
-        with(density) {
-            val screenHeightPx = configuration.screenHeightDp.dp.toPx()
-            val sizechar = min(configuration.screenWidthDp, configuration.screenHeightDp).dp * 0.8f
-            screenHeightPx - (sizechar * 0.4f).toPx()
-        }
+    val windowInfo = LocalWindowInfo.current
+    val characterYTargetPx = remember(density, windowInfo.containerSize) { 
+        val screenWidthPx = windowInfo.containerSize.width.toFloat()
+        val screenHeightPx = windowInfo.containerSize.height.toFloat()
+        val sizecharPx = min(screenWidthPx, screenHeightPx) * 0.8f
+        screenHeightPx - sizecharPx * 0.4f
     }
     
     val animY = remember { Animatable(0f) }
@@ -136,8 +132,8 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     // Calculate the relative offset needed to reach the target Y position in the GameScreen
                     // In MenuGame, the character is inside a Box with weight(1f) and center alignment.
                     // To match the GameScreen's position (bottom area), we move it to characterYTargetPx.
-                    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-                    val centerToBottomOffsetPx = (screenHeightPx / 2f) - (characterYTargetPx)
+                    val screenHeightPx = windowInfo.containerSize.height.toFloat()
+                    val centerToBottomOffsetPx = (screenHeightPx / 2f) - characterYTargetPx
                     animY.animateTo(-centerToBottomOffsetPx / density.density + 80f, tween(500, easing = FastOutLinearInEasing))
                 }
                 launch {
@@ -202,30 +198,30 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         label = "rotation"
     )
 
-    if (showExitDialog) {
+    if (showExitDialog.value) {
         AlertDialog(
-            onDismissRequest = { showExitDialog = false },
+            onDismissRequest = { showExitDialog.value = false },
             title = { Text(text = "Confirm Exit") },
             text = { Text(text = "Are you sure you want to exit the application?") },
             confirmButton = {
                 TextButton(onClick = {
-                    showExitDialog = false
+                    showExitDialog.value = false
                     activity?.finish()
                 }) {
                     Text("Exit")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
+                TextButton(onClick = { showExitDialog.value = false }) {
                     Text("Cancel")
                 }
             }
         )
     }
 
-    if (showSettingDialog) {
+    if (showSettingDialog.value) {
         AlertDialog(
-            onDismissRequest = { showSettingDialog = false },
+            onDismissRequest = { showSettingDialog.value = false },
             containerColor = Color(0xFFEAB676),
             title = { Text(text = "Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black) },
             text = {
@@ -313,7 +309,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             },
             confirmButton = {
                 Button(
-                    onClick = { showSettingDialog = false },
+                    onClick = { showSettingDialog.value = false },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF887164))
                 ) {
                     Text("Close", color = Color.White)
@@ -388,14 +384,14 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                         color = Color.Black,
                         backgroundColor = Color(0xFFEAB676),
                         delay = 200,
-                        onClick = { showSettingDialog = true }
+                        onClick = { showSettingDialog.value = true }
                     )
                     MenuText(
                         text = "EXIT",
                         color = Color.White,
                         backgroundColor = Color(0xFFE53935),
                         delay = 400,
-                        onClick = { showExitDialog = true }
+                        onClick = { showExitDialog.value = true }
                     )
                 }
             } else {
@@ -502,10 +498,4 @@ fun MenuText(
             )
         }
     }
-}
-
-// Custom Easing for a smoother wave-like motion
-val SineWaveEasing = Easing { fraction ->
-    val sinValue = kotlin.math.sin(fraction * kotlin.math.PI)
-    sinValue.toFloat()
 }
