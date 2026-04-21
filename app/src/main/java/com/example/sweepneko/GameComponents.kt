@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,7 +31,8 @@ fun HpStaminaBar(
     isNextSlashRed: Boolean,
     wave: Int = 1,
     enemiesKilled: Int = 0,
-    targetKills: Int = 15
+    targetKills: Int = 15,
+    isInfiniteSP: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -93,6 +95,7 @@ fun HpStaminaBar(
                     bgColor = Color(0xFF424242),
                     borderColor = Color(0xFFEEEEEE),
                     isHexagon = true,
+                    isRainbow = isInfiniteSP,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(28.dp)
@@ -222,8 +225,20 @@ fun CustomBar(
     bgColor: Color,
     borderColor: Color,
     isHexagon: Boolean,
+    isRainbow: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "rainbow")
+    val offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rainbowOffset"
+    )
+
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -271,7 +286,24 @@ fun CustomBar(
                     close()
                 }
             }
-            drawPath(path = fgPath, color = barColor)
+            if (isRainbow) {
+                val colors = listOf(
+                    Color.Red, Color.Magenta, Color.Blue, Color.Cyan, 
+                    Color.Green, Color.Yellow, Color.Red
+                )
+                
+                drawPath(
+                    path = fgPath,
+                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = colors,
+                        start = Offset(offset, 0f),
+                        end = Offset(offset + 500f, 0f),
+                        tileMode = androidx.compose.ui.graphics.TileMode.Repeated
+                    )
+                )
+            } else {
+                drawPath(path = fgPath, color = barColor)
+            }
         }
         
         drawPath(
@@ -337,6 +369,58 @@ fun PauseMenu(onResume: () -> Unit, onMenu: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
             ) {
                 Text("Menu", fontSize = 20.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun InventoryRow(
+    inventory: List<PowerUpType>,
+    onUse: (PowerUpType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        inventory.distinct().forEach { type ->
+            val count = inventory.count { it == type }
+            Box(contentAlignment = Alignment.TopEnd) {
+                Surface(
+                    onClick = { onUse(type) },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(48.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    val resId = when(type) {
+                        PowerUpType.CAT_CAN -> R.drawable.catcan
+                        PowerUpType.CAT_BAR -> R.drawable.carbar
+                        PowerUpType.TIME_STOP -> R.drawable.time
+                    }
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = resId),
+                        contentDescription = type.name,
+                        modifier = Modifier.padding(6.dp).fillMaxSize()
+                    )
+                }
+                if (count > 1) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color.Red,
+                        modifier = Modifier.size(20.dp).offset(x = 6.dp, y = (-6).dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = count.toString(),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
         }
     }

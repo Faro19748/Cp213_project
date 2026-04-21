@@ -6,11 +6,30 @@ data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, 
 data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 data class FadingEnemy(val enemy: Enemy, val deathTime: Long)
 
+enum class PowerUpType(val imageRes: String) {
+    CAT_CAN("catcan.png"),
+    CAT_BAR("catbar.png"),
+    TIME_STOP("time.png")
+}
+
+data class PowerUp(
+    val id: Long,
+    val x: Float,
+    val y: Float,
+    val type: PowerUpType,
+    val dx: Float,
+    val dy: Float,
+    val widthDp: Float = 60f,
+    val heightDp: Float = 60f
+)
+
 data class GameState(
     val hp: Int = 100,
     val stamina: Float = 100f,
     val enemies: List<Enemy> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
+    val powerUps: List<PowerUp> = emptyList(),
+    val inventory: List<PowerUpType> = emptyList(),
     val fadingSlashes: List<FadingSlash> = emptyList(),
     val fadingEnemies: List<FadingEnemy> = emptyList(),
     val ultimateGauge: Float = 0f,
@@ -24,5 +43,7 @@ data class GameState(
     val playerImmuneUntil: Long = 0L,
     val wave: Int = 1,
     val enemiesKilledInWave: Int = 0,
-    val targetKillsForWave: Int = 15
+    val targetKillsForWave: Int = 15,
+    val infiniteStaminaUntil: Long = 0L,
+    val enemySlowUntil: Long = 0L
 )

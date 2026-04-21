@@ -87,7 +87,11 @@ class GameViewModel : ViewModel() {
             }
 
             if (s.slashStart == null && newStamina < 100f) {
-                newStamina = min(100f, newStamina + (dt * 10f) / 1000f)
+                val staminaRegenRate = if (currentTime < s.infiniteStaminaUntil) 1000f else 10f
+                newStamina = min(100f, newStamina + (dt * staminaRegenRate) / 1000f)
+            }
+            if (currentTime < s.infiniteStaminaUntil) {
+                newStamina = 100f
             }
 
             val newFadingSlashes = s.fadingSlashes.filter { currentTime - it.startTime < 400 }
@@ -107,18 +111,21 @@ class GameViewModel : ViewModel() {
                 newEnemiesKilledInWave = 0
                 newTargetKillsForWave += 5
                 
+                // Spawn Power-up when wave increases
+                // (Already handled below using newWave > s.wave)
+                
                 // Spawn Boss every 5 waves
                 if (newWave % 5 == 0) {
                     spawnCount++
                     val eWidthPx = EnemyType.BOSS.widthDp * pixelDensity
                     val eHeightPx = EnemyType.BOSS.heightDp * pixelDensity
-                    val spawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
-                    val spawnY = -eHeightPx * 1.5f
+                    val bSpawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
+                    val bSpawnY = -eHeightPx * 1.5f
                     
                     newEnemies.add(Enemy(
                         id = spawnCount,
-                        x = spawnX,
-                        y = spawnY,
+                        x = bSpawnX,
+                        y = bSpawnY,
                         type = EnemyType.BOSS,
                         speed = EnemyType.BOSS.speed,
                         hp = EnemyType.BOSS.initialHp,
@@ -126,9 +133,49 @@ class GameViewModel : ViewModel() {
                         heightPx = eHeightPx,
                         widthDp = EnemyType.BOSS.widthDp,
                         heightDp = EnemyType.BOSS.heightDp,
-                        isFlipped = (spawnX < screenWidthPx / 2f)
+                        isFlipped = (bSpawnX < screenWidthPx / 2f)
                     ))
                 }
+            }
+
+            val newPowerUps = s.powerUps.toMutableList()
+            if (newWave > s.wave) {
+                spawnCount++
+                val puType = PowerUpType.values().random()
+                val puWidthPx = 60f * pixelDensity
+                val puHeightPx = 60f * pixelDensity
+                val spawnX = (Math.random() * (screenWidthPx - puWidthPx) + puWidthPx / 2f).toFloat()
+                val spawnY = (Math.random() * (screenHeightPx * 0.5f) + screenHeightPx * 0.2f).toFloat()
+                
+                val angle = Math.random() * 2 * Math.PI
+                val puSpeed = 8f // Increased from 2f
+                val pdx = (cos(angle) * puSpeed).toFloat()
+                val pdy = (sin(angle) * puSpeed).toFloat()
+                
+                newPowerUps.add(PowerUp(
+                    id = spawnCount,
+                    x = spawnX,
+                    y = spawnY,
+                    type = puType,
+                    dx = pdx,
+                    dy = pdy
+                ))
+            }
+
+            // Update PowerUp positions
+            val updatedPowerUps = newPowerUps.map { pu ->
+                var nx = pu.x + pu.dx
+                var ny = pu.y + pu.dy
+                var ndx = pu.dx
+                var ndy = pu.dy
+
+                val puWidthPx = pu.widthDp * pixelDensity
+                val puHeightPx = pu.heightDp * pixelDensity
+
+                if (nx < puWidthPx / 2f || nx > screenWidthPx - puWidthPx / 2f) ndx = -ndx
+                if (ny < puHeightPx / 2f || ny > screenHeightPx - puHeightPx / 2f) ndy = -ndy
+
+                pu.copy(x = nx, y = ny, dx = ndx, dy = ndy)
             }
 
             val spawnInterval = max(500L, 2000L - (newWave - 1) * 100L)
@@ -225,8 +272,9 @@ class GameViewModel : ViewModel() {
                         ))
                     }
                 } else if (dist > 0) {
-                    nx += (dx/dist) * enemy.speed
-                    ny += (dy/dist) * enemy.speed
+                    val actualSpeed = if (currentTime < s.enemySlowUntil) 1f else enemy.speed
+                    nx += (dx/dist) * actualSpeed
+                    ny += (dy/dist) * actualSpeed
                 }
 
                 if (nx + enemy.widthPx / 2f > charLeft && nx - enemy.widthPx / 2f < charRight &&
@@ -281,8 +329,35 @@ class GameViewModel : ViewModel() {
                 isGameOver = newHp <= 0,
                 wave = newWave,
                 enemiesKilledInWave = newEnemiesKilledInWave,
-                targetKillsForWave = newTargetKillsForWave
+                targetKillsForWave = newTargetKillsForWave,
+                powerUps = updatedPowerUps,
+                inventory = s.inventory,
+                infiniteStaminaUntil = s.infiniteStaminaUntil,
+                enemySlowUntil = s.enemySlowUntil
             )
+        }
+    }
+
+    fun usePowerUp(type: PowerUpType) {
+        val currentTime = System.currentTimeMillis()
+        _state.update { s ->
+            val index = s.inventory.indexOf(type)
+            if (index == -1) return@update s
+            
+            val newInventory = s.inventory.toMutableList()
+            newInventory.removeAt(index)
+            
+            when (type) {
+                PowerUpType.CAT_CAN -> {
+                    s.copy(hp = min(100, s.hp + 40), inventory = newInventory)
+                }
+                PowerUpType.CAT_BAR -> {
+                    s.copy(infiniteStaminaUntil = currentTime + 5000L, inventory = newInventory)
+                }
+                PowerUpType.TIME_STOP -> {
+                    s.copy(enemySlowUntil = currentTime + 5000L, inventory = newInventory)
+                }
+            }
         }
     }
 
@@ -414,7 +489,22 @@ class GameViewModel : ViewModel() {
                 stamina = newStamina,
                 isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
                 isUltimateActive = false,
-                enemiesKilledInWave = newEnemiesKilledInWave
+                enemiesKilledInWave = newEnemiesKilledInWave,
+                powerUps = s.powerUps.filterNot { pu ->
+                    slashesToApply.any { (st, en) ->
+                        isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
+                    }
+                },
+                inventory = if (s.inventory.isEmpty()) {
+                    val hitPowerUps = s.powerUps.filter { pu ->
+                        slashesToApply.any { (st, en) ->
+                            isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
+                        }
+                    }
+                    if (hitPowerUps.isNotEmpty()) s.inventory + hitPowerUps.first().type else s.inventory
+                } else {
+                    s.inventory
+                }
             )
         }
     }

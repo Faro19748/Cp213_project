@@ -151,6 +151,10 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             .build(), 
         imageLoader = imageLoader
     )
+    
+    val catCanPainter = painterResource(id = R.drawable.catcan)
+    val catBarPainter = painterResource(id = R.drawable.carbar)
+    val timePainter = painterResource(id = R.drawable.time)
 
     val deadFastPainter = painterResource(id = R.drawable.d_sm_enemy)
     val deadBigPainter = painterResource(id = R.drawable.d_b_enemy)
@@ -196,6 +200,27 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             .graphicsLayer {
                                 translationX = p.x - (p.widthDp * density.density) / 2
                                 translationY = p.y - (p.heightDp * density.density) / 2
+                            }
+                    )
+                }
+            }
+            
+            // PowerUps
+            state.powerUps.forEach { pu ->
+                key(pu.id) {
+                    val painter = when(pu.type) {
+                        PowerUpType.CAT_CAN -> catCanPainter
+                        PowerUpType.CAT_BAR -> catBarPainter
+                        PowerUpType.TIME_STOP -> timePainter
+                    }
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = pu.widthDp.dp, height = pu.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = pu.x - (pu.widthDp * density.density) / 2
+                                translationY = pu.y - (pu.heightDp * density.density) / 2
                             }
                     )
                 }
@@ -384,7 +409,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                     isNextSlashRed = state.isNextSlashRed,
                     wave = state.wave,
                     enemiesKilled = state.enemiesKilledInWave,
-                    targetKills = state.targetKillsForWave
+                    targetKills = state.targetKillsForWave,
+                    isInfiniteSP = System.currentTimeMillis() < state.infiniteStaminaUntil
                 )
             }
             
@@ -403,25 +429,35 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         modifier = Modifier.align(Alignment.BottomStart),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            progress = { state.ultimateGauge / 100f },
-                            modifier = Modifier.size(64.dp),
-                            color = Color(0xFFFFD700),
-                            strokeWidth = 4.dp,
-                            trackColor = Color.Gray.copy(alpha = 0.5f)
-                        )
-                        FloatingActionButton(
-                            onClick = { viewModel.activateUltimate() }, 
-                            containerColor = if (state.ultimateGauge >= 100f) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.DarkGray.copy(alpha = 0.7f),
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            modifier = Modifier.size(52.dp)
-                        ) {
-                            Text(
-                                "ULT", 
-                                fontSize = 16.sp, 
-                                fontWeight = FontWeight.Bold, 
-                                color = if (state.ultimateGauge >= 100f) Color.Black else Color.LightGray
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            InventoryRow(
+                                inventory = state.inventory,
+                                onUse = { viewModel.usePowerUp(it) },
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
+                            
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    progress = { state.ultimateGauge / 100f },
+                                    modifier = Modifier.size(64.dp),
+                                    color = Color(0xFFFFD700),
+                                    strokeWidth = 4.dp,
+                                    trackColor = Color.Gray.copy(alpha = 0.5f)
+                                )
+                                FloatingActionButton(
+                                    onClick = { viewModel.activateUltimate() }, 
+                                    containerColor = if (state.ultimateGauge >= 100f) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.DarkGray.copy(alpha = 0.7f),
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    modifier = Modifier.size(52.dp)
+                                ) {
+                                    Text(
+                                        "ULT", 
+                                        fontSize = 16.sp, 
+                                        fontWeight = FontWeight.Bold, 
+                                        color = if (state.ultimateGauge >= 100f) Color.Black else Color.LightGray
+                                    )
+                                }
+                            }
                         }
                     }
                     
