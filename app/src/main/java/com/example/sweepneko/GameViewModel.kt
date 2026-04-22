@@ -346,7 +346,6 @@ class GameViewModel : ViewModel() {
         
         if (newState.isGameOver && !prevState.isGameOver) {
             SoundManager.playSFX("bomb")
-            SoundManager.playGameOverMusic()
             saveHighScore(newState.wave)
         }
         
