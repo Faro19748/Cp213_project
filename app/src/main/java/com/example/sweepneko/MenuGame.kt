@@ -177,9 +177,13 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         imageLoader = imageLoader
     )
     
+    val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
+    var isRealCat by remember { mutableStateOf(prefs.getBoolean("is_real_cat", false)) }
+    var catClickCount by remember { mutableStateOf(0) }
+
     val menuCharPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
-            .data(R.drawable.cat_char)
+            .data(if (isRealCat) R.drawable.realcat else R.drawable.cat_char)
             .size(coil.size.Size.ORIGINAL)
             .build(),
         imageLoader = imageLoader
@@ -354,14 +358,28 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     .offset(y = animY.value.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = if (isStarting) spinPainter else menuCharPainter,
-                    contentDescription = "Character",
-                    modifier = Modifier
-                        .fillMaxSize(1f)
-                        .aspectRatio(1f)
-                        .scale(animScale.value)
-                )
+                    Image(
+                        painter = if (isStarting) spinPainter else menuCharPainter,
+                        contentDescription = "Character",
+                        modifier = Modifier
+                            .fillMaxSize(1f)
+                            .aspectRatio(1f)
+                            .scale(animScale.value * if (isRealCat) 0.7f else 1f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                if (!isStarting) {
+                                    catClickCount++
+                                    if (catClickCount >= 10) {
+                                        isRealCat = !isRealCat
+                                        catClickCount = 0
+                                        prefs.edit().putBoolean("is_real_cat", isRealCat).apply()
+                                        SoundManager.playSFX("powerup") // Optional feedback
+                                    }
+                                }
+                            }
+                    )
             }
 
             // Buttons

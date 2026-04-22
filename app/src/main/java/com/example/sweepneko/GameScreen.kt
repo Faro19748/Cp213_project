@@ -48,6 +48,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val density = LocalDensity.current
     val activity = LocalActivity.current
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
+    val isRealCat = remember { prefs.getBoolean("is_real_cat", false) }
     
     val screenWidthPx = remember(configuration, density) { with(density) { configuration.screenWidthDp.dp.toPx() } }
     val screenHeightPx = remember(configuration, density) { with(density) { configuration.screenHeightDp.dp.toPx() } }
@@ -140,8 +142,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     )
     val charPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
-            .data(R.drawable.b_cat)
-            .size(600)
+            .data(if (isRealCat) R.drawable.realcat else R.drawable.b_cat)
+            .size(if (isRealCat) 200 else 600)
             .build(), 
         imageLoader = imageLoader
     )
@@ -265,7 +267,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         else -> normalEnemyPainter
                     }
                     
-                    val isHitEffectActive = (enemy.type == EnemyType.BIG || enemy.type == EnemyType.BOSS) && 
+                    val isHitEffectActive = (enemy.type == EnemyType.BOSS) && 
                                             (System.currentTimeMillis() - enemy.lastHitTime < 200)
 
                     Box(
