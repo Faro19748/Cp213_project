@@ -90,6 +90,10 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     
     val animY = remember { Animatable(0f) }
     val animScale = remember { Animatable(1.4f) }
+    
+    // UI Transitions
+    val logoOffsetAnim = remember { Animatable(0f) }
+    val uiAlphaAnim = remember { Animatable(0f) } // สำหรับ Best Wave และ Buttons (Popup effect)
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -97,8 +101,11 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 isStarting = false
                 scope.launch {
-                    animY.snapTo(0f)
-                    animScale.snapTo(1.4f)
+                    // Reset animations when returning to menu
+                    launch { animY.snapTo(0f) }
+                    launch { animScale.snapTo(1.4f) }
+                    launch { logoOffsetAnim.snapTo(0f) }
+                    launch { uiAlphaAnim.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
                 }
             }
         }
@@ -119,6 +126,10 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(isStarting) {
         if (isStarting) {
+            // UI Disappear
+            launch { uiAlphaAnim.animateTo(0f, tween(300)) }
+            launch { logoOffsetAnim.animateTo(-400f, tween(500, easing = BackEaseIn)) }
+
             // 1. Shake animation
             repeat(4) {
                 animY.animateTo(15f, tween(40))
@@ -129,9 +140,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             // 2. Move to bottom and scale to game size
             coroutineScope {
                 launch {
-                    // Calculate the relative offset needed to reach the target Y position in the GameScreen
-                    // In MenuGame, the character is inside a Box with weight(1f) and center alignment.
-                    // To match the GameScreen's position (bottom area), we move it to characterYTargetPx.
                     val screenHeightPx = windowInfo.containerSize.height.toFloat()
                     val centerToBottomOffsetPx = (screenHeightPx / 2f) - characterYTargetPx
                     animY.animateTo(-centerToBottomOffsetPx / density.density + 80f, tween(500, easing = FastOutLinearInEasing))
@@ -177,7 +185,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         imageLoader = imageLoader
     )
 
-    // Logo Animation
+    // Logo Floating Animation
     val infiniteTransition = rememberInfiniteTransition(label = "logo_anim")
     val translateY by infiniteTransition.animateFloat(
         initialValue = -10f,
@@ -226,21 +234,17 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             title = { Text(text = "Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // BGM Volume
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                             Text(text = "Background Music", fontWeight = FontWeight.Medium, color = Color.Black)
-                            TextButton(onClick = { /* BGM updated automatically via slider */ }) {
+                            TextButton(onClick = { }) {
                                 Text("Preview", color = Color(0xFF887164))
                             }
                         }
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            // 3D Track Effect (Shadow/Bottom Layer)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -249,7 +253,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color.Black.copy(alpha = 0.2f))
                             )
-                            
                             Slider(
                                 value = SoundManager.bgmVolumeSnapshot.value,
                                 onValueChange = { SoundManager.setBGMVolume(it) },
@@ -266,7 +269,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                         }
                     }
                     
-                    // SFX Volume
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                             Text(text = "Sound Effects", fontWeight = FontWeight.Medium, color = Color.Black)
@@ -275,12 +277,9 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                             }
                         }
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            // 3D Track Effect (Shadow/Bottom Layer)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -289,7 +288,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color.Black.copy(alpha = 0.2f))
                             )
-                            
                             Slider(
                                 value = SoundManager.sfxVolumeSnapshot.value,
                                 onValueChange = { SoundManager.setSFXVolume(it) },
@@ -342,8 +340,9 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     .height(180.dp)
                     .fillMaxWidth(1f)
                     .graphicsLayer {
-                        translationY = translateY
+                        translationY = translateY + logoOffsetAnim.value
                         rotationZ = rotation
+                        alpha = uiAlphaAnim.value
                     },
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit
             )
@@ -366,12 +365,18 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             }
 
             // Buttons
-            if (!isStarting) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.offset(y = (-40).dp)
-                ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .offset(y = (-40).dp)
+                    .graphicsLayer {
+                        alpha = uiAlphaAnim.value
+                        scaleX = 0.8f + (uiAlphaAnim.value * 0.2f)
+                        scaleY = 0.8f + (uiAlphaAnim.value * 0.2f)
+                    }
+            ) {
+                if (!isStarting || uiAlphaAnim.value > 0.1f) {
                     MenuText(
                         text = "PLAY",
                         color = Color.Black,
@@ -393,10 +398,9 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                         delay = 400,
                         onClick = { showExitDialog.value = true }
                     )
+                } else {
+                    Spacer(modifier = Modifier.height(260.dp))
                 }
-            } else {
-                // Spacer to maintain layout while buttons are hidden
-                Spacer(modifier = Modifier.height(260.dp))
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -411,13 +415,17 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(24.dp)
+                .graphicsLayer { 
+                    alpha = uiAlphaAnim.value
+                    translationX = -100f * (1f - uiAlphaAnim.value)
+                }
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.Black.copy(alpha = 0.5f))
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
                 text = "BEST WAVE: $highScore",
-                color = Color(0xFFFFD700), // Gold Color
+                color = Color(0xFFFFD700),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -441,7 +449,6 @@ fun MenuText(
         label = "scale"
     )
 
-    // Floating animation
     val infiniteTransition = rememberInfiniteTransition(label = "floating")
     val offsetTransition by infiniteTransition.animateFloat(
         initialValue = -4f,
@@ -472,7 +479,6 @@ fun MenuText(
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Shadow/Bottom Layer for 3D effect
         Box(
             modifier = Modifier
                 .offset(y = 4.dp)
@@ -481,7 +487,6 @@ fun MenuText(
                 .matchParentSize()
         )
         
-        // Main Button Surface
         Box(
             modifier = Modifier
                 .offset(y = if (isPressed) 2.dp else 0.dp)
@@ -498,4 +503,10 @@ fun MenuText(
             )
         }
     }
+}
+
+// Easing helpers
+val BackEaseIn = Easing { fraction ->
+    val s = 1.70158f
+    fraction * fraction * ((s + 1) * fraction - s)
 }

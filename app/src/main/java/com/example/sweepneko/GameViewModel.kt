@@ -122,22 +122,25 @@ class GameViewModel : ViewModel() {
                 // Spawn Boss every 5 waves
                 if (newWave % 5 == 0) {
                     spawnCount++
-                    val eWidthPx = EnemyType.BOSS.widthDp * pixelDensity
-                    val eHeightPx = EnemyType.BOSS.heightDp * pixelDensity
+                    val eType = EnemyType.BOSS
+                    val eWidthPx = eType.widthDp * pixelDensity
+                    val eHeightPx = eType.heightDp * pixelDensity
                     val bSpawnX = (Math.random() * (screenWidthPx - eWidthPx) + eWidthPx / 2f).toFloat()
                     val bSpawnY = -eHeightPx * 1.5f
                     
                     newEnemies.add(Enemy(
-                        id = spawnCount,
+                        id = System.currentTimeMillis() + spawnCount,
                         x = bSpawnX,
                         y = bSpawnY,
-                        type = EnemyType.BOSS,
-                        speed = EnemyType.BOSS.speed,
-                        hp = EnemyType.BOSS.initialHp,
+                        type = eType,
+                        speed = eType.speed,
+                        hp = eType.initialHp,
                         widthPx = eWidthPx,
                         heightPx = eHeightPx,
-                        widthDp = EnemyType.BOSS.widthDp,
-                        heightDp = EnemyType.BOSS.heightDp,
+                        hitboxWidthPx = eWidthPx * eType.hitboxWidthRatio,
+                        hitboxHeightPx = eHeightPx * eType.hitboxHeightRatio,
+                        widthDp = eType.widthDp,
+                        heightDp = eType.heightDp,
                         isFlipped = (bSpawnX < screenWidthPx / 2f)
                     ))
                     SoundManager.playBossMusic()
@@ -187,7 +190,7 @@ class GameViewModel : ViewModel() {
             if (timeSinceLastSpawn >= spawnInterval && newEnemies.size < 15) {
                 spawnCount++
                 newEnemies.add(Enemy.createRandomSpawn(
-                    id = spawnCount,
+                    id = System.currentTimeMillis() + spawnCount,
                     screenWidthPx = screenWidthPx,
                     screenHeightPx = screenHeightPx,
                     pixelDensity = pixelDensity,
@@ -198,8 +201,9 @@ class GameViewModel : ViewModel() {
 
             if (currentTime >= nextSwarmTime) {
                 nextSwarmTime = currentTime + 10000L
+                spawnCount++ // Ensure epicenter has a unique ID
                 val epicenter = Enemy.createRandomSpawn(
-                    id = spawnCount, 
+                    id = System.currentTimeMillis() + spawnCount, 
                     screenWidthPx = screenWidthPx, 
                     screenHeightPx = screenHeightPx, 
                     pixelDensity = pixelDensity,
@@ -208,17 +212,23 @@ class GameViewModel : ViewModel() {
                 
                 val swarmEnemies = (1..4).map { _ ->
                     spawnCount++
+                    val swarmType = EnemyType.FAST
+                    val swPx = swarmType.widthDp * pixelDensity
+                    val shPx = swarmType.heightDp * pixelDensity
                     epicenter.copy(
-                        id = spawnCount,
+                        id = System.currentTimeMillis() + spawnCount,
                         x = epicenter.x + (Math.random().toFloat() - 0.5f) * 50f,
                         y = epicenter.y + (Math.random().toFloat() - 0.5f) * 50f,
-                        type = EnemyType.FAST, 
-                        hp = EnemyType.FAST.initialHp, 
-                        speed = EnemyType.FAST.speed, 
-                        widthPx = EnemyType.FAST.widthDp * pixelDensity, 
-                        heightPx = EnemyType.FAST.heightDp * pixelDensity,
-                        widthDp = EnemyType.FAST.widthDp,
-                        heightDp = EnemyType.FAST.heightDp
+                        type = swarmType, 
+                        hp = swarmType.initialHp, 
+                        speed = swarmType.speed, 
+                        widthPx = swPx, 
+                        heightPx = shPx,
+                        hitboxWidthPx = swPx * swarmType.hitboxWidthRatio, // Correct hitbox
+                        hitboxHeightPx = shPx * swarmType.hitboxHeightRatio, // Correct hitbox
+                        widthDp = swarmType.widthDp,
+                        heightDp = swarmType.heightDp,
+                        lastHitTime = 0L // Reset to prevent inherited hit flash
                     )
                 }
                 newEnemies.addAll(swarmEnemies)
@@ -268,7 +278,7 @@ class GameViewModel : ViewModel() {
                 if (enemy.type == EnemyType.SHOOTING && dist <= shooterStopDist && isInsideScreen) {
                     if (currentTime - enemy.lastAttackTime > 4000L) {
                         updatedLastAttackTime = currentTime
-                        val projSpeed = 4f
+                        val projSpeed = 8f // Increased from 4f
                         projectileIdCounter++
                         remainingProjectiles.add(Projectile(
                             id = projectileIdCounter,
@@ -302,7 +312,7 @@ class GameViewModel : ViewModel() {
                 val e1 = nextEnemiesList[i]
                 for (j in i + 1 until nextEnemiesList.size) {
                     val e2 = nextEnemiesList[j]
-                    val minDist = (e1.widthPx + e2.widthPx) / 2f
+                    val minDist = (e1.hitboxWidthPx + e2.hitboxWidthPx) / 2f
                     val edx = e2.x - e1.x
                     val edy = e2.y - e1.y
                     val distSq = edx * edx + edy * edy
@@ -411,8 +421,8 @@ class GameViewModel : ViewModel() {
             val dx = end.x - start.x; val dy = end.y - start.y
             val distSq = dx*dx + dy*dy
             if (distSq > 2500f) {
-                performSlash(start, end)
                 SoundManager.playSFX("slash")
+                performSlash(start, end)
             }
         }
         _state.update { it.copy(slashStart = null, slashEnd = null) }
@@ -455,7 +465,7 @@ class GameViewModel : ViewModel() {
 
             s.enemies.forEach { enemy ->
                 val isHit = slashesToApply.any { (st, en) ->
-                    isLineIntersectingRect(st, en, enemy.x - enemy.widthPx / 2, enemy.y - enemy.heightPx / 2, enemy.widthPx, enemy.heightPx)
+                    isLineIntersectingRect(st, en, enemy.x - enemy.hitboxWidthPx / 2, enemy.y - enemy.hitboxHeightPx / 2, enemy.hitboxWidthPx, enemy.hitboxHeightPx)
                 }
                 
                 if (isHit && currentTime - enemy.lastHitTime > 300) {
@@ -519,14 +529,14 @@ class GameViewModel : ViewModel() {
                         isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
                     }
                 },
-                inventory = s.inventory.ifEmpty {
+                inventory = if (s.inventory.isEmpty()) {
                     val hitPowerUps = s.powerUps.filter { pu ->
                         slashesToApply.any { (st, en) ->
                             isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
                         }
                     }
-                    if (hitPowerUps.isNotEmpty()) s.inventory + hitPowerUps.first().type else s.inventory
-                }
+                    if (hitPowerUps.isNotEmpty()) listOf(hitPowerUps.last().type) else s.inventory
+                } else s.inventory
             ).also {
                 if (s.isUltimateActive) {
                     SoundManager.stopUltMusic()

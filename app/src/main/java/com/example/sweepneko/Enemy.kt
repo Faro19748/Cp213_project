@@ -1,11 +1,18 @@
 package com.example.sweepneko
 
-enum class EnemyType(val initialHp: Int, val speed: Float, val widthDp: Float, val heightDp: Float) {
+enum class EnemyType(
+    val initialHp: Int, 
+    val speed: Float, 
+    val widthDp: Float, 
+    val heightDp: Float,
+    val hitboxWidthRatio: Float = 0.8f,
+    val hitboxHeightRatio: Float = 0.8f
+) {
     NORMAL(initialHp = 1, speed = 5f, widthDp = 100f, heightDp = 100f),
-    FAST(initialHp = 1, speed = 7f, widthDp = 60f, heightDp = 60f),
-    BIG(initialHp = 3, speed = 3f, widthDp = 150f, heightDp = 150f),
+    FAST(initialHp = 1, speed = 7f, widthDp = 60f, heightDp = 60f, hitboxWidthRatio = 0.6f, hitboxHeightRatio = 0.6f),
+    BIG(initialHp = 3, speed = 3f, widthDp = 150f, heightDp = 150f, hitboxWidthRatio = 0.5f, hitboxHeightRatio = 0.5f), // Adjusted from 0.6 to 0.5 for precision
     SHOOTING(initialHp = 1, speed = 5f, widthDp = 100f, heightDp = 100f),
-    BOSS(initialHp = 10, speed = 1f, widthDp = 250f, heightDp = 250f)
+    BOSS(initialHp = 10, speed = 1f, widthDp = 250f, heightDp = 250f, hitboxWidthRatio = 1.0f, hitboxHeightRatio = 1.0f)
 }
 
 data class Enemy(
@@ -19,6 +26,8 @@ data class Enemy(
     var heightPx: Float = 0f,
     var widthDp: Float = type.widthDp,
     var heightDp: Float = type.heightDp,
+    var hitboxWidthPx: Float = 0f,
+    var hitboxHeightPx: Float = 0f,
     var lastHitTime: Long = 0L,
     var lastAttackTime: Long = 0L,
     var isFlipped: Boolean = false
@@ -42,6 +51,8 @@ data class Enemy(
 
             val eWidthPx = type.widthDp * pixelDensity
             val eHeightPx = type.heightDp * pixelDensity
+            val hitboxWPx = eWidthPx * type.hitboxWidthRatio
+            val hitboxHPx = eHeightPx * type.hitboxHeightRatio
 
             val side = (0..2).random()
             val spawnX: Float
@@ -61,6 +72,8 @@ data class Enemy(
                         hp = type.initialHp,
                         widthPx = eWidthPx,
                         heightPx = eHeightPx,
+                        hitboxWidthPx = hitboxWPx,
+                        hitboxHeightPx = hitboxHPx,
                         widthDp = type.widthDp,
                         heightDp = type.heightDp,
                         isFlipped = (type == EnemyType.NORMAL && spawnX < screenWidthPx / 2f)
@@ -78,6 +91,8 @@ data class Enemy(
                         hp = type.initialHp,
                         widthPx = eWidthPx,
                         heightPx = eHeightPx,
+                        hitboxWidthPx = hitboxWPx,
+                        hitboxHeightPx = hitboxHPx,
                         widthDp = type.widthDp,
                         heightDp = type.heightDp,
                         isFlipped = (type == EnemyType.NORMAL || type == EnemyType.BIG)
@@ -95,6 +110,8 @@ data class Enemy(
                         hp = type.initialHp,
                         widthPx = eWidthPx,
                         heightPx = eHeightPx,
+                        hitboxWidthPx = hitboxWPx,
+                        hitboxHeightPx = hitboxHPx,
                         widthDp = type.widthDp,
                         heightDp = type.heightDp,
                         isFlipped = false

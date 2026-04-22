@@ -265,17 +265,26 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         else -> normalEnemyPainter
                     }
                     
-                    Image(
-                        painter = localPainter,
-                        contentDescription = null,
+                    val isHitEffectActive = (enemy.type == EnemyType.BIG || enemy.type == EnemyType.BOSS) && 
+                                            (System.currentTimeMillis() - enemy.lastHitTime < 200)
+
+                    Box(
                         modifier = Modifier
                             .size(width = enemy.widthDp.dp, height = enemy.heightDp.dp)
                             .graphicsLayer {
                                 translationX = enemy.x - enemy.widthPx / 2
                                 translationY = enemy.y - enemy.heightPx / 2
                                 scaleX = if (enemy.isFlipped) -1f else 1f
-                            }
-                    )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = localPainter,
+                            contentDescription = null,
+                            colorFilter = if (isHitEffectActive) androidx.compose.ui.graphics.ColorFilter.tint(Color.Red.copy(alpha = 0.4f)) else null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
             
@@ -321,7 +330,6 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                     Image(painter = bombPainter, contentDescription = "Bomb", modifier = Modifier.fillMaxSize())
                  } else if (!state.isGameOver) {
                     Image(painter = charPainter, contentDescription = null, modifier = Modifier.fillMaxSize())
-                    Box(modifier = Modifier.size(hitboxchar).border(2.dp, if (isImmune) Color.Red else Color.Transparent))
                  }
             }
             
