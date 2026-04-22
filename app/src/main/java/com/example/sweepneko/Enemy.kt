@@ -16,21 +16,21 @@ enum class EnemyType(
 }
 
 data class Enemy(
-    var id: Long,
-    var x: Float,
-    var y: Float,
+    val id: Long,
+    val x: Float,
+    val y: Float,
     val type: EnemyType = EnemyType.NORMAL,
     val speed: Float = type.speed,
-    var hp: Int = type.initialHp,
-    var widthPx: Float = 0f,
-    var heightPx: Float = 0f,
-    var widthDp: Float = type.widthDp,
-    var heightDp: Float = type.heightDp,
-    var hitboxWidthPx: Float = 0f,
-    var hitboxHeightPx: Float = 0f,
-    var lastHitTime: Long = 0L,
-    var lastAttackTime: Long = 0L,
-    var isFlipped: Boolean = false
+    val hp: Int = type.initialHp,
+    val widthPx: Float = 0f,
+    val heightPx: Float = 0f,
+    val widthDp: Float = type.widthDp,
+    val heightDp: Float = type.heightDp,
+    val hitboxWidthPx: Float = 0f,
+    val hitboxHeightPx: Float = 0f,
+    val lastHitTime: Long = 0L,
+    val lastAttackTime: Long = 0L,
+    val isFlipped: Boolean = false
 ) {
     companion object {
         const val SPAWN_INTERVAL_MS = 2000L // ปรับอัตราการเกิด (มิลลิวินาที) เช่น 1000 = 1 วิ, 2000 = 2 วิ

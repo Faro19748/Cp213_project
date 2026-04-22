@@ -308,10 +308,12 @@ class GameViewModel : ViewModel() {
                 nextEnemiesList.add(enemy.copy(x = nx, y = ny, lastAttackTime = updatedLastAttackTime))
             }
 
-            for (i in nextEnemiesList.indices) {
-                val e1 = nextEnemiesList[i]
-                for (j in i + 1 until nextEnemiesList.size) {
-                    val e2 = nextEnemiesList[j]
+            // Separated collision to avoid ConcurrentModification/Mutation issues with immutable objects
+            val collidedEnemies = nextEnemiesList.toMutableList()
+            for (i in collidedEnemies.indices) {
+                var e1 = collidedEnemies[i]
+                for (j in i + 1 until collidedEnemies.size) {
+                    var e2 = collidedEnemies[j]
                     val minDist = (e1.hitboxWidthPx + e2.hitboxWidthPx) / 2f
                     val edx = e2.x - e1.x
                     val edy = e2.y - e1.y
@@ -323,10 +325,10 @@ class GameViewModel : ViewModel() {
                         val pushX = edx * overlap
                         val pushY = edy * overlap
                         
-                        e1.x -= pushX
-                        e1.y -= pushY
-                        e2.x += pushX
-                        e2.y += pushY
+                        e1 = e1.copy(x = e1.x - pushX, y = e1.y - pushY)
+                        e2 = e2.copy(x = e2.x + pushX, y = e2.y + pushY)
+                        collidedEnemies[i] = e1
+                        collidedEnemies[j] = e2
                     }
                 }
             }
@@ -334,7 +336,7 @@ class GameViewModel : ViewModel() {
             s.copy(
                 hp = max(0, newHp),
                 stamina = newStamina,
-                enemies = nextEnemiesList,
+                enemies = collidedEnemies,
                 projectiles = remainingProjectiles,
                 fadingSlashes = newFadingSlashes,
                 fadingEnemies = newFadingEnemies,

@@ -26,7 +26,8 @@ object SoundManager {
     val sfxVolumeSnapshot: State<Float> = _sfxVolume
 
     fun init(context: Context) {
-        appContext = context.applicationContext
+        val appContextLocal = context.applicationContext
+        appContext = appContextLocal
         if (soundPool != null) return
 
         val audioAttributes = AudioAttributes.Builder()
@@ -39,17 +40,17 @@ object SoundManager {
             .setAudioAttributes(audioAttributes)
             .build()
 
-        sounds["slash"] = soundPool!!.load(context, R.raw.mc_slash, 1)
-        sounds["use"] = soundPool!!.load(context, R.raw.mc_use, 1)
-        sounds["bomb"] = soundPool!!.load(context, R.raw.mc_bomb, 1)
-        sounds["takedamage"] = soundPool!!.load(context, R.raw.takedamage, 1)
-        sounds["mama"] = soundPool!!.load(context, R.raw.mama, 1)
-        sounds["ult"] = soundPool!!.load(context, R.raw.ult, 1)
+        sounds["slash"] = soundPool!!.load(appContextLocal, R.raw.mc_slash, 1)
+        sounds["use"] = soundPool!!.load(appContextLocal, R.raw.mc_use, 1)
+        sounds["bomb"] = soundPool!!.load(appContextLocal, R.raw.mc_bomb, 1)
+        sounds["takedamage"] = soundPool!!.load(appContextLocal, R.raw.takedamage, 1)
+        sounds["mama"] = soundPool!!.load(appContextLocal, R.raw.mama, 1)
+        sounds["ult"] = soundPool!!.load(appContextLocal, R.raw.ult, 1)
 
-        menuPlayer = MediaPlayer.create(context, R.raw.mc_menu).apply { isLooping = true }
-        mainPlayer = MediaPlayer.create(context, R.raw.mc_main).apply { isLooping = true }
-        bossPlayer = MediaPlayer.create(context, R.raw.mc_boss).apply { isLooping = true }
-        gameOverPlayer = MediaPlayer.create(context, R.raw.gameover).apply { isLooping = false }
+        menuPlayer = MediaPlayer.create(appContextLocal, R.raw.mc_menu).apply { isLooping = true }
+        mainPlayer = MediaPlayer.create(appContextLocal, R.raw.mc_main).apply { isLooping = true }
+        bossPlayer = MediaPlayer.create(appContextLocal, R.raw.mc_boss).apply { isLooping = true }
+        gameOverPlayer = MediaPlayer.create(appContextLocal, R.raw.gameover).apply { isLooping = false }
         
         updateVolumes()
     }
