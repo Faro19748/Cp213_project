@@ -46,5 +46,7 @@ data class GameState(
     val enemiesKilledInWave: Int = 0,
     val targetKillsForWave: Int = 15,
     val infiniteStaminaUntil: Long = 0L,
-    val enemySlowUntil: Long = 0L
+    val enemySlowUntil: Long = 0L,
+    val shakeTriggerTime: Long = 0L,
+    val shakeIntensity: Float = 0f
 )

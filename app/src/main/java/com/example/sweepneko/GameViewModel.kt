@@ -352,7 +352,9 @@ class GameViewModel : ViewModel() {
                 powerUps = updatedPowerUps,
                 inventory = s.inventory,
                 infiniteStaminaUntil = s.infiniteStaminaUntil,
-                enemySlowUntil = s.enemySlowUntil
+                enemySlowUntil = s.enemySlowUntil,
+                shakeTriggerTime = if (newHp <= 0 && s.hp > 0) currentTime else s.shakeTriggerTime,
+                shakeIntensity = if (newHp <= 0 && s.hp > 0) 30f else s.shakeIntensity
             )
         }
         
@@ -461,6 +463,7 @@ class GameViewModel : ViewModel() {
             }
             
             var killedInThisSlash = 0
+            var hitsInThisSlash = 0
             val nextEnemies = mutableListOf<Enemy>()
             val newFadingEnemies = s.fadingEnemies.toMutableList()
             
@@ -472,6 +475,7 @@ class GameViewModel : ViewModel() {
                 }
                 
                 if (isHit && currentTime - enemy.lastHitTime > 300) {
+                    hitsInThisSlash++
                     val dmg = if (isUltSlash) 10 else 1
                     val newEnemyHp = enemy.hp - dmg
                     if (newEnemyHp <= 0) {
@@ -507,16 +511,16 @@ class GameViewModel : ViewModel() {
             var newUltimateGauge = s.ultimateGauge
             var newStamina = s.stamina
             
-            if (killedInThisSlash > 0) {
+            if (hitsInThisSlash > 0) {
                 lastEnemyHitTime = currentTime
-                newComboCount += killedInThisSlash
+                newComboCount += hitsInThisSlash
                 if (newComboCount > newMaxCombo) {
                     newMaxCombo = newComboCount
                 }
-                newUltimateGauge = min(100f, newUltimateGauge + (2f * killedInThisSlash))
+                newUltimateGauge = min(100f, newUltimateGauge + (2f * hitsInThisSlash))
                 
                 if (wasRed) {
-                    newStamina = min(100f, newStamina + (20f * killedInThisSlash))
+                    newStamina = min(100f, newStamina + (20f * hitsInThisSlash))
                 }
             }
 
@@ -532,6 +536,8 @@ class GameViewModel : ViewModel() {
                 isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
                 isUltimateActive = false,
                 enemiesKilledInWave = newEnemiesKilledInWave,
+                shakeTriggerTime = if (wasRed) currentTime else s.shakeTriggerTime,
+                shakeIntensity = if (wasRed) 15f else s.shakeIntensity,
                 powerUps = s.powerUps.filterNot { pu ->
                     slashesToApply.any { (st, en) ->
                         isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
@@ -568,10 +574,17 @@ class GameViewModel : ViewModel() {
     }
 
     fun activateUltimate() {
+        val currentTime = System.currentTimeMillis()
         _state.update { s ->
             if (!s.isUltimateActive && s.ultimateGauge >= 100f) {
                 SoundManager.playUltMusic()
-                s.copy(isUltimateActive = true, ultimateGauge = 0f, stamina = min(100f, s.stamina + 50f))
+                s.copy(
+                    isUltimateActive = true, 
+                    ultimateGauge = 0f, 
+                    stamina = min(100f, s.stamina + 50f),
+                    shakeTriggerTime = currentTime,
+                    shakeIntensity = 20f
+                )
             } else s
         }
     }

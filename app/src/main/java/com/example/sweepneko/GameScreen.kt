@@ -33,6 +33,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+import androidx.compose.animation.core.*
 import android.os.Build.VERSION.SDK_INT
 import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
@@ -47,6 +48,32 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val activity = LocalActivity.current
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "shake")
+    val shakeAnim by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(50, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shakeOffset"
+    )
+
+    val shakeOffsetX: Float
+    val shakeOffsetY: Float
+    
+    val elapsed = System.currentTimeMillis() - state.shakeTriggerTime
+    if (elapsed < 500) {
+        val decay = 1f - (elapsed / 500f)
+        val currentIntensity = state.shakeIntensity * decay
+        shakeOffsetX = (shakeAnim - 0.5f) * 2f * currentIntensity
+        shakeOffsetY = (shakeAnim - 0.5f) * 2f * currentIntensity
+    } else {
+        shakeOffsetX = 0f
+        shakeOffsetY = 0f
+    }
+
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
     val isRealCat = remember { prefs.getBoolean("is_real_cat", false) }
@@ -186,6 +213,10 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     Box(modifier = modifier
         .fillMaxSize()
         .systemGestureExclusion()
+        .graphicsLayer {
+            translationX = shakeOffsetX
+            translationY = shakeOffsetY
+        }
     ) {
         Image(
             painter = bgPainter,
