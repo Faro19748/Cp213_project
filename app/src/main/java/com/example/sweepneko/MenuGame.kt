@@ -78,6 +78,10 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     val activity = LocalActivity.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
+    val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
+    var highScore by remember { mutableStateOf(prefs.getInt("high_score_wave", 1)) }
+    var highCombo by remember { mutableStateOf(prefs.getInt("high_score_combo", 0)) }
 
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
@@ -101,6 +105,10 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isStarting = false
+                // Update scores from prefs immediately on resume
+                highScore = prefs.getInt("high_score_wave", 1)
+                highCombo = prefs.getInt("high_score_combo", 0)
+                
                 scope.launch {
                     // Reset animations when returning to menu
                     launch { animY.snapTo(0f) }
@@ -178,10 +186,8 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         imageLoader = imageLoader
     )
     
-    val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
     var isRealCat by remember { mutableStateOf(prefs.getBoolean("is_real_cat", false)) }
     var catClickCount by remember { mutableStateOf(0) }
-    var highScore by remember { mutableStateOf(prefs.getInt("high_score_wave", 1)) }
 
     val menuCharPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
@@ -312,13 +318,17 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
 
                     Button(
                         onClick = {
-                            prefs.edit().putInt("high_score_wave", 1).apply()
+                            prefs.edit()
+                                .putInt("high_score_wave", 1)
+                                .putInt("high_score_combo", 0)
+                                .apply()
                             highScore = 1
+                            highCombo = 0
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Reset Best Wave", color = Color.White)
+                        Text("Reset Statistics", color = Color.White)
                     }
                 }
             },
@@ -465,12 +475,24 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                 .background(Color.Black.copy(alpha = 0.5f))
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = "BEST WAVE: $highScore",
-                color = Color(0xFFFFD700),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "BEST WAVE: $highScore",
+                    color = Color(0xFFFFD700),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Box(modifier = Modifier.width(2.dp).height(16.dp).background(Color.White.copy(alpha = 0.3f)))
+                Text(
+                    text = "BEST HIT: $highCombo",
+                    color = Color(0xFFE07A7A),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

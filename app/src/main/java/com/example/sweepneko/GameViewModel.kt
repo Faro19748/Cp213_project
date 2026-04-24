@@ -358,7 +358,7 @@ class GameViewModel : ViewModel() {
         
         if (newState.isGameOver && !prevState.isGameOver) {
             SoundManager.playSFX("bomb")
-            saveHighScore(newState.wave)
+            saveHighScore(newState.wave, newState.maxComboInRun)
         }
         
         // After state update, check for boss presence to manage music
@@ -502,12 +502,16 @@ class GameViewModel : ViewModel() {
             }
 
             var newComboCount = s.comboCount
+            var newMaxCombo = s.maxComboInRun
             var newUltimateGauge = s.ultimateGauge
             var newStamina = s.stamina
             
             if (killedInThisSlash > 0) {
                 lastEnemyHitTime = currentTime
                 newComboCount += killedInThisSlash
+                if (newComboCount > newMaxCombo) {
+                    newMaxCombo = newComboCount
+                }
                 newUltimateGauge = min(100f, newUltimateGauge + (2f * killedInThisSlash))
                 
                 if (wasRed) {
@@ -521,6 +525,7 @@ class GameViewModel : ViewModel() {
                 fadingSlashes = newFadingSlashes,
                 fadingEnemies = newFadingEnemies,
                 comboCount = newComboCount,
+                maxComboInRun = newMaxCombo,
                 ultimateGauge = newUltimateGauge,
                 stamina = newStamina,
                 isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
@@ -570,13 +575,18 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    private fun saveHighScore(wave: Int) {
+    fun saveHighScore(wave: Int, combo: Int) {
         val context = SoundManager.getContext() ?: return
         val prefs = context.getSharedPreferences("SweepNekoPrefs", Context.MODE_PRIVATE)
-        val currentHigh = prefs.getInt("high_score_wave", 1)
-        if (wave > currentHigh) {
-            prefs.edit {
+        val currentHighWave = prefs.getInt("high_score_wave", 1)
+        val currentHighCombo = prefs.getInt("high_score_combo", 0)
+        
+        prefs.edit {
+            if (wave > currentHighWave) {
                 putInt("high_score_wave", wave)
+            }
+            if (combo > currentHighCombo) {
+                putInt("high_score_combo", combo)
             }
         }
     }

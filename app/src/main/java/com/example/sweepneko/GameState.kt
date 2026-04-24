@@ -35,6 +35,7 @@ data class GameState(
     val ultimateGauge: Float = 0f,
     val isUltimateActive: Boolean = false,
     val comboCount: Int = 0,
+    val maxComboInRun: Int = 0,
     val isNextSlashRed: Boolean = false,
     val slashStart: Offset? = null,
     val slashEnd: Offset? = null,

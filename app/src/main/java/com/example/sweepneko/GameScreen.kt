@@ -505,7 +505,13 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             }
 
             if (state.isPaused && !state.isGameOver) {
-                PauseMenu(onResume = { viewModel.resumeGame() }, onMenu = { activity?.finish() })
+                PauseMenu(
+                    onResume = { viewModel.resumeGame() }, 
+                    onMenu = { 
+                        viewModel.saveHighScore(state.wave, state.maxComboInRun)
+                        activity?.finish() 
+                    }
+                )
             }
         }
     }
