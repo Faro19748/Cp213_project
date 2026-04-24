@@ -90,6 +90,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     
     val animY = remember { Animatable(0f) }
     val animScale = remember { Animatable(1.4f) }
+    val bounceScale = remember { Animatable(1f) }
     
     // UI Transitions
     val logoOffsetAnim = remember { Animatable(0f) }
@@ -180,6 +181,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     val prefs = remember { context.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
     var isRealCat by remember { mutableStateOf(prefs.getBoolean("is_real_cat", false)) }
     var catClickCount by remember { mutableStateOf(0) }
+    var highScore by remember { mutableStateOf(prefs.getInt("high_score_wave", 1)) }
 
     val menuCharPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
@@ -307,6 +309,17 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     }
+
+                    Button(
+                        onClick = {
+                            prefs.edit().putInt("high_score_wave", 1).apply()
+                            highScore = 1
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Reset Best Wave", color = Color.White)
+                    }
                 }
             },
             confirmButton = {
@@ -364,12 +377,27 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier
                             .fillMaxSize(1f)
                             .aspectRatio(1f)
-                            .scale(animScale.value * if (isRealCat) 0.7f else 1f)
+                            .scale(animScale.value * bounceScale.value * if (isRealCat) 0.7f else 1f)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
                                 if (!isStarting) {
+                                    scope.launch {
+                                        // Bounce animation
+                                        bounceScale.animateTo(
+                                            targetValue = 1.15f,
+                                            animationSpec = tween(100, easing = FastOutSlowInEasing)
+                                        )
+                                        bounceScale.animateTo(
+                                            targetValue = 1f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessLow
+                                            )
+                                        )
+                                    }
+
                                     catClickCount++
                                     if (catClickCount >= 10) {
                                         isRealCat = !isRealCat
@@ -425,10 +453,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         }
 
         // High Score Display (Bottom Left)
-        val activityLocal = LocalActivity.current
-        val prefs = remember { activityLocal?.getSharedPreferences("SweepNekoPrefs", android.content.Context.MODE_PRIVATE) }
-        val highScore = remember { prefs?.getInt("high_score_wave", 1) ?: 1 }
-
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
