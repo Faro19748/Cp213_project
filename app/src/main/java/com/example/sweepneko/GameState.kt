@@ -6,6 +6,19 @@ data class FadingSlash(val start: Offset, val end: Offset, val startTime: Long, 
 data class Projectile(val id: Long, val x: Float, val y: Float, val dx: Float, val dy: Float, val widthDp: Float = 40f, val heightDp: Float = 40f)
 data class FadingEnemy(val enemy: Enemy, val deathTime: Long)
 
+data class FadingBomb(val x: Float, val y: Float, val startTime: Long, val widthDp: Float, val heightDp: Float)
+
+data class C4Hazard(
+    val id: Long,
+    val x: Float,
+    val y: Float,
+    val dx: Float,
+    val dy: Float,
+    val spawnTime: Long,
+    val widthDp: Float = 80f,
+    val heightDp: Float = 80f
+)
+
 enum class PowerUpType {
     CAT_CAN,
     CAT_BAR,
@@ -47,6 +60,8 @@ data class GameState(
     val targetKillsForWave: Int = 15,
     val infiniteStaminaUntil: Long = 0L,
     val enemySlowUntil: Long = 0L,
+    val c4s: List<C4Hazard> = emptyList(),
+    val fadingBombs: List<FadingBomb> = emptyList(),
     val shakeTriggerTime: Long = 0L,
     val shakeIntensity: Float = 0f
 )

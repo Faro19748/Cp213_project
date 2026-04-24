@@ -30,6 +30,7 @@ class GameViewModel : ViewModel() {
     private var lastEnemyHitTime = 0L
     private var timeSinceLastSpawn = 0L
     private var nextSwarmTime = 0L
+    private var lastC4SpawnTime = 0L
 
     // Constants or Screen dimensions set from Composable
     var screenWidthPx = 0f
@@ -42,9 +43,11 @@ class GameViewModel : ViewModel() {
 
     fun startGameLoop() {
         gameLoopJob?.cancel()
+        val startTime = System.currentTimeMillis()
+        lastC4SpawnTime = startTime
         gameLoopJob = viewModelScope.launch(Dispatchers.Default) {
             var lastFrameTime = System.nanoTime()
-            nextSwarmTime = System.currentTimeMillis() + 10000L
+            nextSwarmTime = startTime + 10000L
             SoundManager.playMainMusic()
 
             while (true) {
@@ -101,6 +104,7 @@ class GameViewModel : ViewModel() {
 
             val newFadingSlashes = s.fadingSlashes.filter { currentTime - it.startTime < 400 }
             val newFadingEnemies = s.fadingEnemies.filter { currentTime - it.deathTime < 1000 }
+            val newFadingBombs = s.fadingBombs.filter { currentTime - it.startTime < 1000 }
 
             // Wave Management
             var newWave = s.wave
@@ -148,6 +152,37 @@ class GameViewModel : ViewModel() {
             }
 
             val newPowerUps = s.powerUps.toMutableList()
+            
+            // C4 Logic
+            val updatedC4s = s.c4s.filter { currentTime - it.spawnTime < 10000L }.map { c4 ->
+                var nx = c4.x + c4.dx
+                var ny = c4.y + c4.dy
+                var ndx = c4.dx
+                var ndy = c4.dy
+                val w = c4.widthDp * pixelDensity
+                val h = c4.heightDp * pixelDensity
+                
+                if (nx < w/2f || nx > screenWidthPx - w/2f) ndx = -ndx
+                if (ny < h/2f || ny > screenHeightPx - h/2f) ndy = -ndy
+                
+                c4.copy(x = nx, y = ny, dx = ndx, dy = ndy)
+            }.toMutableList()
+            
+            if (currentTime - lastC4SpawnTime > 30000L) {
+                lastC4SpawnTime = currentTime
+                val w = 80f * pixelDensity
+                val h = 80f * pixelDensity
+                val angle = Math.random() * 2 * Math.PI
+                val speed = 10f
+                updatedC4s.add(C4Hazard(
+                    id = System.currentTimeMillis(),
+                    x = (Math.random() * (screenWidthPx - w) + w/2).toFloat(),
+                    y = (Math.random() * (screenHeightPx - h) + h/2).toFloat(),
+                    dx = (cos(angle) * speed).toFloat(),
+                    dy = (sin(angle) * speed).toFloat(),
+                    spawnTime = currentTime
+                ))
+            }
             if (newWave > s.wave) {
                 spawnCount++
                 val puType = PowerUpType.entries.random()
@@ -340,6 +375,7 @@ class GameViewModel : ViewModel() {
                 projectiles = remainingProjectiles,
                 fadingSlashes = newFadingSlashes,
                 fadingEnemies = newFadingEnemies,
+                fadingBombs = newFadingBombs,
                 ultimateGauge = newUltimateGauge,
                 comboCount = newComboCount,
                 isNextSlashRed = newIsNextSlashRed,
@@ -353,6 +389,7 @@ class GameViewModel : ViewModel() {
                 inventory = s.inventory,
                 infiniteStaminaUntil = s.infiniteStaminaUntil,
                 enemySlowUntil = s.enemySlowUntil,
+                c4s = updatedC4s,
                 shakeTriggerTime = if (newHp <= 0 && s.hp > 0) currentTime else s.shakeTriggerTime,
                 shakeIntensity = if (newHp <= 0 && s.hp > 0) 30f else s.shakeIntensity
             )
@@ -466,8 +503,20 @@ class GameViewModel : ViewModel() {
             var hitsInThisSlash = 0
             val nextEnemies = mutableListOf<Enemy>()
             val newFadingEnemies = s.fadingEnemies.toMutableList()
+            val newFadingBombs = s.fadingBombs.toMutableList()
             
             var newEnemiesKilledInWave = s.enemiesKilledInWave
+            var c4Hit = false
+
+            s.c4s.forEach { c4 ->
+                val isHit = slashesToApply.any { (st, en) ->
+                    isLineIntersectingRect(st, en, c4.x - (c4.widthDp * pixelDensity) / 2, c4.y - (c4.heightDp * pixelDensity) / 2, c4.widthDp * pixelDensity, c4.heightDp * pixelDensity)
+                }
+                if (isHit) {
+                    c4Hit = true
+                    newFadingBombs.add(FadingBomb(c4.x, c4.y, currentTime, c4.widthDp * 2.5f, c4.heightDp * 2.5f))
+                }
+            }
 
             s.enemies.forEach { enemy ->
                 val isHit = slashesToApply.any { (st, en) ->
@@ -510,6 +559,17 @@ class GameViewModel : ViewModel() {
             var newMaxCombo = s.maxComboInRun
             var newUltimateGauge = s.ultimateGauge
             var newStamina = s.stamina
+            var newHpValue = s.hp
+            var newShakeTriggerTime = s.shakeTriggerTime
+            var newShakeIntensity = s.shakeIntensity
+
+            if (c4Hit) {
+                SoundManager.playSFX("bomb")
+                newHpValue = max(0, newHpValue - 30)
+                newShakeTriggerTime = currentTime
+                newShakeIntensity = 40f
+                newComboCount = 0
+            }
             
             if (hitsInThisSlash > 0) {
                 lastEnemyHitTime = currentTime
@@ -525,10 +585,12 @@ class GameViewModel : ViewModel() {
             }
 
             s.copy(
+                hp = newHpValue,
                 enemies = nextEnemies,
                 projectiles = nextProjectiles,
                 fadingSlashes = newFadingSlashes,
                 fadingEnemies = newFadingEnemies,
+                fadingBombs = newFadingBombs,
                 comboCount = newComboCount,
                 maxComboInRun = newMaxCombo,
                 ultimateGauge = newUltimateGauge,
@@ -536,8 +598,13 @@ class GameViewModel : ViewModel() {
                 isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
                 isUltimateActive = false,
                 enemiesKilledInWave = newEnemiesKilledInWave,
-                shakeTriggerTime = if (wasRed) currentTime else s.shakeTriggerTime,
-                shakeIntensity = if (wasRed) 15f else s.shakeIntensity,
+                shakeTriggerTime = if (wasRed) currentTime else newShakeTriggerTime,
+                shakeIntensity = if (wasRed) 15f else newShakeIntensity,
+                c4s = s.c4s.filter { c4 ->
+                    !slashesToApply.any { (st, en) ->
+                        isLineIntersectingRect(st, en, c4.x - (c4.widthDp * pixelDensity) / 2, c4.y - (c4.heightDp * pixelDensity) / 2, c4.widthDp * pixelDensity, c4.heightDp * pixelDensity)
+                    }
+                },
                 powerUps = s.powerUps.filterNot { pu ->
                     slashesToApply.any { (st, en) ->
                         isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)

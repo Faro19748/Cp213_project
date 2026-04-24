@@ -181,6 +181,22 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             .build(), 
         imageLoader = imageLoader
     )
+
+    val c4Painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.c4)
+            .size(240)
+            .build(),
+        imageLoader = imageLoader
+    )
+
+    val bombPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bomb)
+            .size(240)
+            .build(),
+        imageLoader = imageLoader
+    )
     
     val catCanPainter = painterResource(id = R.drawable.catcan)
     val catBarPainter = painterResource(id = R.drawable.carbar)
@@ -191,13 +207,6 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val deadShootPainter = painterResource(id = R.drawable.d_s_enemy)
     val deadNormalPainter = painterResource(id = R.drawable.d_n_enemy)
     val deadBossPainter = painterResource(id = R.drawable.d_boss)
-    
-    val bombPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.bomb)
-            .build(), 
-        imageLoader = imageLoader
-    )
 
     var showBomb by remember { mutableStateOf(false) }
 
@@ -318,6 +327,38 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                }
+            }
+
+            // C4 Hazards
+            state.c4s.forEach { c4 ->
+                key(c4.id) {
+                    Image(
+                        painter = c4Painter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = c4.widthDp.dp, height = c4.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = c4.x - (c4.widthDp * density.density) / 2
+                                translationY = c4.y - (c4.heightDp * density.density) / 2
+                            }
+                    )
+                }
+            }
+
+            // Fading Bombs
+            state.fadingBombs.forEach { fb ->
+                key("bomb_${fb.startTime}") {
+                    Image(
+                        painter = bombPainter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = fb.widthDp.dp, height = fb.heightDp.dp)
+                            .graphicsLayer {
+                                translationX = fb.x - (fb.widthDp * density.density) / 2
+                                translationY = fb.y - (fb.heightDp * density.density) / 2
+                            }
+                    )
                 }
             }
             

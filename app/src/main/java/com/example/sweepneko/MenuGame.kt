@@ -197,6 +197,15 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
         imageLoader = imageLoader
     )
 
+    val bombPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(R.drawable.bomb)
+            .build(),
+        imageLoader = imageLoader
+    )
+    
+    var showBombEffect by remember { mutableStateOf(false) }
+
     // Logo Floating Animation
     val infiniteTransition = rememberInfiniteTransition(label = "logo_anim")
     val translateY by infiniteTransition.animateFloat(
@@ -410,14 +419,30 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
 
                                     catClickCount++
                                     if (catClickCount >= 10) {
-                                        isRealCat = !isRealCat
+                                        SoundManager.playSFX("bomb")
+                                        showBombEffect = true
+                                        scope.launch {
+                                            delay(1000)
+                                            showBombEffect = false
+                                            isRealCat = !isRealCat
+                                            prefs.edit().putBoolean("is_real_cat", isRealCat).apply()
+                                        }
                                         catClickCount = 0
-                                        prefs.edit().putBoolean("is_real_cat", isRealCat).apply()
-                                        SoundManager.playSFX("powerup") // Optional feedback
                                     }
                                 }
                             }
                     )
+                    
+                    if (showBombEffect) {
+                        Image(
+                            painter = bombPainter,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize(1f)
+                                .aspectRatio(1f)
+                                .scale(animScale.value * bounceScale.value * if (isRealCat) 0.7f else 1f)
+                        )
+                    }
             }
 
             // Buttons
