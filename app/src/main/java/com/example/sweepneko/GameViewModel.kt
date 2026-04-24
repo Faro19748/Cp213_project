@@ -422,7 +422,8 @@ class GameViewModel : ViewModel() {
         if (start != null && end != null) {
             val dx = end.x - start.x; val dy = end.y - start.y
             val distSq = dx*dx + dy*dy
-            if (distSq > 2500f) {
+            // Minimum slash length: 200 pixels (200^2 = 40000)
+            if (distSq > 80000f) {
                 SoundManager.playSFX("slash")
                 performSlash(start, end)
             }
