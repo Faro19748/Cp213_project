@@ -3,6 +3,7 @@ package com.example.sweepneko
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -583,6 +584,18 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         viewModel.saveHighScore(state.wave, state.maxComboInRun)
                         activity?.finish() 
                     }
+                )
+            }
+
+            // Damage Flash Overlay
+            val damageElapsed = System.currentTimeMillis() - state.lastDamageTime
+            if (damageElapsed < 300) {
+                val alpha = (1f - (damageElapsed / 300f)) * 0.4f
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(8.dp, Color.Red.copy(alpha = alpha))
+                        .background(Color.Red.copy(alpha = alpha * 0.5f))
                 )
             }
         }

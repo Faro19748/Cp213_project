@@ -63,5 +63,6 @@ data class GameState(
     val c4s: List<C4Hazard> = emptyList(),
     val fadingBombs: List<FadingBomb> = emptyList(),
     val shakeTriggerTime: Long = 0L,
-    val shakeIntensity: Float = 0f
+    val shakeIntensity: Float = 0f,
+    val lastDamageTime: Long = 0L
 )

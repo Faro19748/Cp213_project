@@ -88,6 +88,8 @@ class GameViewModel : ViewModel() {
             var newIsNextSlashRed = s.isNextSlashRed
             var newPlayerImmuneUntil = s.playerImmuneUntil
             val newIsUltimateActive = s.isUltimateActive
+            var newShakeTriggerTime = s.shakeTriggerTime
+            var newShakeIntensity = s.shakeIntensity
 
             if (newComboCount > 0 && currentTime - lastEnemyHitTime > 3000L) {
                 newComboCount = 0
@@ -288,6 +290,8 @@ class GameViewModel : ViewModel() {
                         newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
+                        newShakeTriggerTime = currentTime
+                        newShakeIntensity = 15f
                         SoundManager.playSFX("takedamage")
                     }
                 } else if (pnx > -200f && pnx < screenWidthPx + 200f && pny > -200f && pny < screenHeightPx + 200f) {
@@ -337,6 +341,8 @@ class GameViewModel : ViewModel() {
                         newPlayerImmuneUntil = currentTime + 1000L
                         newComboCount = 0
                         newIsNextSlashRed = false
+                        newShakeTriggerTime = currentTime
+                        newShakeIntensity = 25f
                         SoundManager.playSFX("takedamage")
                     }
                 }
@@ -390,8 +396,9 @@ class GameViewModel : ViewModel() {
                 infiniteStaminaUntil = s.infiniteStaminaUntil,
                 enemySlowUntil = s.enemySlowUntil,
                 c4s = updatedC4s,
-                shakeTriggerTime = if (newHp <= 0 && s.hp > 0) currentTime else s.shakeTriggerTime,
-                shakeIntensity = if (newHp <= 0 && s.hp > 0) 30f else s.shakeIntensity
+                shakeTriggerTime = if (newHp <= 0 && s.hp > 0) currentTime else newShakeTriggerTime,
+                shakeIntensity = if (newHp <= 0 && s.hp > 0) 30f else newShakeIntensity,
+                lastDamageTime = if (newHp < s.hp) currentTime else s.lastDamageTime
             )
         }
         
@@ -567,7 +574,7 @@ class GameViewModel : ViewModel() {
                 SoundManager.playSFX("bomb")
                 newHpValue = max(0, newHpValue - 30)
                 newShakeTriggerTime = currentTime
-                newShakeIntensity = 40f
+                newShakeIntensity = 30f
                 newComboCount = 0
             }
             
@@ -583,6 +590,8 @@ class GameViewModel : ViewModel() {
                     newStamina = min(100f, newStamina + (20f * hitsInThisSlash))
                 }
             }
+
+            val finalLastDamageTime = if (newHpValue < s.hp) currentTime else s.lastDamageTime
 
             s.copy(
                 hp = newHpValue,
@@ -600,6 +609,7 @@ class GameViewModel : ViewModel() {
                 enemiesKilledInWave = newEnemiesKilledInWave,
                 shakeTriggerTime = if (wasRed) currentTime else newShakeTriggerTime,
                 shakeIntensity = if (wasRed) 15f else newShakeIntensity,
+                lastDamageTime = finalLastDamageTime,
                 c4s = s.c4s.filter { c4 ->
                     !slashesToApply.any { (st, en) ->
                         isLineIntersectingRect(st, en, c4.x - (c4.widthDp * pixelDensity) / 2, c4.y - (c4.heightDp * pixelDensity) / 2, c4.widthDp * pixelDensity, c4.heightDp * pixelDensity)
