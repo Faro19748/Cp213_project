@@ -35,6 +35,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.example.sweepneko.ui.theme.SweepNekoTheme
 import kotlin.math.min
 
@@ -74,6 +76,7 @@ class MenuGame : ComponentActivity() {
 fun GameMenuScreen(modifier: Modifier = Modifier) {
     val showExitDialog = remember { mutableStateOf(false) }
     val showSettingDialog = remember { mutableStateOf(false) }
+    val showHowToPlayDialog = remember { mutableStateOf(false) }
     var isStarting by remember { mutableStateOf(false) }
     val activity = LocalActivity.current
     val context = LocalContext.current
@@ -341,21 +344,6 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     }
-
-                    Button(
-                        onClick = {
-                            prefs.edit()
-                                .putInt("high_score_wave", 1)
-                                .putInt("high_score_combo", 0)
-                                .apply()
-                            highScore = 1
-                            highCombo = 0
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Reset Statistics", color = Color.White)
-                    }
                 }
             },
             confirmButton = {
@@ -364,6 +352,47 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF887164))
                 ) {
                     Text("Close", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showHowToPlayDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showHowToPlayDialog.value = false },
+            containerColor = Color(0xFFEAB676),
+            title = { 
+                Text(
+                    text = "How to Play", 
+                    fontSize = 24.sp, 
+                    fontWeight = FontWeight.Bold, 
+                    color = Color.Black 
+                ) 
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("🎮 Controls", fontWeight = FontWeight.Bold, color = Color(0xFF887164))
+                    Text("• Drag on screen to Slash enemies.\n• Slashes consume Stamina (Green Bar).", color = Color.Black)
+                    
+                    Text("🔥 Combat", fontWeight = FontWeight.Bold, color = Color(0xFF887164))
+                    Text("• Red Slash: Every 10 combos, triggers a Red Slash that restores Stamina on hit.\n• Ultimate: Charge gauge to 100% to activate powerful Triple Slashes.", color = Color.Black)
+                    
+                    Text("🎁 Items", fontWeight = FontWeight.Bold, color = Color(0xFF887164))
+                    Text("• Collect Power-ups to Heal (Can), gain Infinite Stamina (Bar), or Slow Time (Clock).", color = Color.Black)
+
+                    Text("⚠️ Precautions", fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                    Text("• C4 Bombs: Slashing them causes massive explosion damage!\n• Bosses: Appear every 5 waves. They are very tough and take reduced damage from Ultimates.", color = Color.Black)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showHowToPlayDialog.value = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF887164))
+                ) {
+                    Text("Got it!", color = Color.White)
                 }
             }
         )
@@ -536,6 +565,29 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+
+        // Help Button (Bottom Right)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+                .graphicsLayer { 
+                    alpha = uiAlphaAnim.value
+                    translationX = 100f * (1f - uiAlphaAnim.value)
+                }
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable { showHowToPlayDialog.value = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "?",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
         }
     }
 }
