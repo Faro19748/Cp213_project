@@ -98,6 +98,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
     
     // UI Transitions
     val logoOffsetAnim = remember { Animatable(0f) }
+    val buttonOffsetAnim = remember { Animatable(0f) }
     val uiAlphaAnim = remember { Animatable(0f) } // สำหรับ Best Wave และ Buttons (Popup effect)
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -110,11 +111,27 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                 highCombo = prefs.getInt("high_score_combo", 0)
                 
                 scope.launch {
-                    // Reset animations when returning to menu
+                    // Reset animations and start "Returning to Menu" animations
                     launch { animY.snapTo(0f) }
-                    launch { animScale.snapTo(1.4f) }
-                    launch { logoOffsetAnim.snapTo(0f) }
-                    launch { uiAlphaAnim.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
+                    launch { animScale.snapTo(0f) } 
+                    launch { logoOffsetAnim.snapTo(-500f) }
+                    launch { buttonOffsetAnim.snapTo(500f) }
+                    launch { uiAlphaAnim.snapTo(0f) }
+                    
+                    delay(100)
+                    
+                    launch { 
+                        logoOffsetAnim.animateTo(0f, tween(800, easing = FastOutSlowInEasing)) 
+                    }
+                    launch { 
+                        animScale.animateTo(1.4f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)) 
+                    }
+                    launch { 
+                        buttonOffsetAnim.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
+                    }
+                    launch { 
+                        uiAlphaAnim.animateTo(1f, tween(800)) 
+                    }
                 }
             }
         }
@@ -453,6 +470,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
                     .offset(y = (-40).dp)
                     .graphicsLayer {
                         alpha = uiAlphaAnim.value
+                        translationY = buttonOffsetAnim.value
                         scaleX = 0.8f + (uiAlphaAnim.value * 0.2f)
                         scaleY = 0.8f + (uiAlphaAnim.value * 0.2f)
                     }

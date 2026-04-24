@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun HpStaminaBar(
@@ -316,6 +318,40 @@ fun CustomBar(
 
 @Composable
 fun GameOverMenu(onRestart: () -> Unit, onMenu: () -> Unit) {
+    val textY = remember { Animatable(-100f) }
+    val textAlpha = remember { Animatable(0f) }
+    val button1Y = remember { Animatable(100f) }
+    val button1Alpha = remember { Animatable(0f) }
+    val button2Y = remember { Animatable(100f) }
+    val button2Alpha = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        // Text comes first
+        launch {
+            textY.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            textAlpha.animateTo(1f, animationSpec = tween(600))
+        }
+        
+        // Buttons come later with stagger
+        delay(300)
+        launch {
+            button1Y.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            button1Alpha.animateTo(1f, animationSpec = tween(600))
+        }
+        
+        delay(150)
+        launch {
+            button2Y.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            button2Alpha.animateTo(1f, animationSpec = tween(600))
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -323,22 +359,47 @@ fun GameOverMenu(onRestart: () -> Unit, onMenu: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "GAME OVER", color = Color.Red, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "GAME OVER", 
+                color = Color.Red, 
+                fontSize = 48.sp, 
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.graphicsLayer {
+                    translationY = textY.value
+                    alpha = textAlpha.value
+                }
+            )
+            Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onRestart,
-                modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(55.dp)
+                    .graphicsLayer {
+                        translationY = button1Y.value
+                        alpha = button1Alpha.value
+                    },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
             ) {
-                Text("Restart", fontSize = 20.sp, color = Color.White)
+                Text("Restart", fontSize = 22.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onMenu,
-                modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(55.dp)
+                    .graphicsLayer {
+                        translationY = button2Y.value
+                        alpha = button2Alpha.value
+                    },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
             ) {
-                Text("Menu", fontSize = 20.sp, color = Color.White)
+                Text("Menu", fontSize = 22.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -346,6 +407,40 @@ fun GameOverMenu(onRestart: () -> Unit, onMenu: () -> Unit) {
 
 @Composable
 fun PauseMenu(onResume: () -> Unit, onMenu: () -> Unit) {
+    val textY = remember { Animatable(-100f) }
+    val textAlpha = remember { Animatable(0f) }
+    val button1Y = remember { Animatable(100f) }
+    val button1Alpha = remember { Animatable(0f) }
+    val button2Y = remember { Animatable(100f) }
+    val button2Alpha = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        // Text comes first
+        launch {
+            textY.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            textAlpha.animateTo(1f, animationSpec = tween(600))
+        }
+        
+        // Buttons come later with stagger
+        delay(300)
+        launch {
+            button1Y.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            button1Alpha.animateTo(1f, animationSpec = tween(600))
+        }
+        
+        delay(150)
+        launch {
+            button2Y.animateTo(0f, animationSpec = tween(600, easing = EaseOutBack))
+        }
+        launch {
+            button2Alpha.animateTo(1f, animationSpec = tween(600))
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -353,22 +448,45 @@ fun PauseMenu(onResume: () -> Unit, onMenu: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "PAUSED", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "PAUSED", 
+                color = Color.White, 
+                fontSize = 48.sp, 
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.graphicsLayer {
+                    translationY = textY.value
+                    alpha = textAlpha.value
+                }
+            )
             Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = onResume,
-                modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(55.dp)
+                    .graphicsLayer {
+                        translationY = button1Y.value
+                        alpha = button1Alpha.value
+                    },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676)),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Resume", fontSize = 20.sp)
+                Text("Resume", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onMenu,
-                modifier = Modifier.width(200.dp).height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676))
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(55.dp)
+                    .graphicsLayer {
+                        translationY = button2Y.value
+                        alpha = button2Alpha.value
+                    },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB676)),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Menu", fontSize = 20.sp)
+                Text("Menu", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
