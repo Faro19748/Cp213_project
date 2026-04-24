@@ -532,7 +532,8 @@ class GameViewModel : ViewModel() {
                 
                 if (isHit && currentTime - enemy.lastHitTime > 300) {
                     hitsInThisSlash++
-                    val dmg = if (isUltSlash) 10 else 1
+                    // Boss takes only 1 damage even from Ultimate
+                    val dmg = if (isUltSlash && enemy.type != EnemyType.BOSS) 10 else 1
                     val newEnemyHp = enemy.hp - dmg
                     if (newEnemyHp <= 0) {
                         killedInThisSlash++
