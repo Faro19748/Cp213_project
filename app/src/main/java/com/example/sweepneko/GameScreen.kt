@@ -359,8 +359,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         else -> normalEnemyPainter
                     }
                     
-                    val isHitEffectActive = (enemy.type == EnemyType.BOSS) && 
-                                            (System.currentTimeMillis() - enemy.lastHitTime < 200)
+                    val isHitEffectActive = enemy.lastHitTime > 0L &&
+                                            System.currentTimeMillis() - enemy.lastHitTime < 200
 
                     Box(
                         modifier = Modifier
@@ -375,8 +375,15 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         Image(
                             painter = localPainter,
                             contentDescription = null,
-                            colorFilter = if (isHitEffectActive) androidx.compose.ui.graphics.ColorFilter.tint(Color.Red.copy(alpha = 0.4f)) else null,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    if (isHitEffectActive) {
+                                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                                            Color.Red.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
                         )
                     }
                 }
