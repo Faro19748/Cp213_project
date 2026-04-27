@@ -156,7 +156,12 @@ class GameViewModel : ViewModel() {
             val newPowerUps = s.powerUps.toMutableList()
             
             // C4 Logic
-            val updatedC4s = s.c4s.filter { currentTime - it.spawnTime < 10000L }.map { c4 ->
+            val filteredC4s = s.c4s.filter { currentTime - it.spawnTime < 10000L }
+            if (s.c4s.isNotEmpty() && filteredC4s.isEmpty()) {
+                lastC4SpawnTime = currentTime
+            }
+
+            val updatedC4s = filteredC4s.map { c4 ->
                 var nx = c4.x + c4.dx
                 var ny = c4.y + c4.dy
                 var ndx = c4.dx
@@ -170,7 +175,7 @@ class GameViewModel : ViewModel() {
                 c4.copy(x = nx, y = ny, dx = ndx, dy = ndy)
             }.toMutableList()
             
-            if (currentTime - lastC4SpawnTime > 30000L) {
+            if (updatedC4s.isEmpty() && currentTime - lastC4SpawnTime > 20000L) {
                 lastC4SpawnTime = currentTime
                 val w = 80f * pixelDensity
                 val h = 80f * pixelDensity
@@ -573,6 +578,7 @@ class GameViewModel : ViewModel() {
 
             if (c4Hit) {
                 SoundManager.playSFX("bomb")
+                lastC4SpawnTime = currentTime
                 newHpValue = max(0, newHpValue - 30)
                 newShakeTriggerTime = currentTime
                 newShakeIntensity = 30f

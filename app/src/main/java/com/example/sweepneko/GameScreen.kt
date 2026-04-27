@@ -50,7 +50,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val density = LocalDensity.current
     val activity = LocalActivity.current
     
-    val infiniteTransition = rememberInfiniteTransition(label = "shake")
+    val infiniteTransition = rememberInfiniteTransition(label = "animations")
     val shakeAnim by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -59,6 +59,16 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             repeatMode = RepeatMode.Reverse
         ),
         label = "shakeOffset"
+    )
+
+    val c4Rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "c4Rotation"
     )
 
     val shakeOffsetX: Float
@@ -342,6 +352,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             .graphicsLayer {
                                 translationX = c4.x - (c4.widthDp * density.density) / 2
                                 translationY = c4.y - (c4.heightDp * density.density) / 2
+                                rotationZ = c4Rotation
                             }
                     )
                 }

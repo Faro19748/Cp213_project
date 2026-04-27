@@ -10,7 +10,7 @@ enum class EnemyType(
 ) {
     NORMAL(initialHp = 1, speed = 5f, widthDp = 100f, heightDp = 100f),
     FAST(initialHp = 1, speed = 7f, widthDp = 60f, heightDp = 60f, hitboxWidthRatio = 0.9f, hitboxHeightRatio = 0.9f),
-    BIG(initialHp = 3, speed = 3f, widthDp = 150f, heightDp = 150f, hitboxWidthRatio = 0.6f, hitboxHeightRatio = 0.6f), // Adjusted from 0.6 to 0.5 for precision
+    BIG(initialHp = 3, speed = 3f, widthDp = 150f, heightDp = 150f, hitboxWidthRatio = 0.5f, hitboxHeightRatio = 0.5f),
     SHOOTING(initialHp = 1, speed = 5f, widthDp = 100f, heightDp = 100f),
     BOSS(initialHp = 10, speed = 1f, widthDp = 250f, heightDp = 250f, hitboxWidthRatio = 1.0f, hitboxHeightRatio = 1.0f)
 }
