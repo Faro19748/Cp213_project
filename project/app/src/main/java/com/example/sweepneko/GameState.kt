@@ -32,6 +32,7 @@ data class PowerUp(
     val type: PowerUpType,
     val dx: Float,
     val dy: Float,
+    val spawnTime: Long,
     val widthDp: Float = 60f,
     val heightDp: Float = 60f
 )

@@ -162,25 +162,26 @@ class GameViewModel : ViewModel() {
             }
 
             val updatedC4s = filteredC4s.map { c4 ->
+                val w = c4.widthDp * pixelDensity
+                val h = c4.heightDp * pixelDensity
                 var nx = c4.x + c4.dx
                 var ny = c4.y + c4.dy
                 var ndx = c4.dx
                 var ndy = c4.dy
-                val w = c4.widthDp * pixelDensity
-                val h = c4.heightDp * pixelDensity
                 
                 if ((nx < w / 2f && ndx < 0) || (nx > screenWidthPx - w / 2f && ndx > 0)) ndx = -ndx
                 if ((ny < h / 2f && ndy < 0) || (ny > screenHeightPx - h / 2f && ndy > 0)) ndy = -ndy
                 
                 c4.copy(x = nx, y = ny, dx = ndx, dy = ndy)
-            }.toMutableList()
+            }
             
-            if (updatedC4s.isEmpty() && currentTime - lastC4SpawnTime > 20000L) {
+            val finalC4s = if (updatedC4s.isEmpty() && currentTime - lastC4SpawnTime > 20000L) {
                 lastC4SpawnTime = currentTime
                 val w = 80f * pixelDensity
                 val h = 80f * pixelDensity
                 val spawn = getRandomEdgeSpawn(screenWidthPx, screenHeightPx, w, h, 10f)
-                updatedC4s.add(C4Hazard(
+                val newList = updatedC4s.toMutableList()
+                newList.add(C4Hazard(
                     id = System.currentTimeMillis(),
                     x = spawn.x,
                     y = spawn.y,
@@ -188,37 +189,33 @@ class GameViewModel : ViewModel() {
                     dy = spawn.dy,
                     spawnTime = currentTime
                 ))
-            }
-            if (newWave > s.wave) {
+                newList
+            } else updatedC4s
+
+            // PowerUp spawning with spawnTime
+            val basePowerUps = if (newWave > s.wave) {
                 spawnCount++
                 val puType = PowerUpType.entries.random()
                 val puWidthPx = 60f * pixelDensity
                 val puHeightPx = 60f * pixelDensity
                 val spawn = getRandomEdgeSpawn(screenWidthPx, screenHeightPx, puWidthPx, puHeightPx, 8f)
-                
-                newPowerUps.add(PowerUp(
-                    id = spawnCount,
-                    x = spawn.x,
-                    y = spawn.y,
-                    type = puType,
-                    dx = spawn.dx,
-                    dy = spawn.dy
-                ))
-            }
+                val newList = newPowerUps.toMutableList()
+                newList.add(PowerUp(id = spawnCount, x = spawn.x, y = spawn.y, type = puType, dx = spawn.dx, dy = spawn.dy, spawnTime = currentTime))
+                newList
+            } else newPowerUps
 
-            // Update PowerUp positions
-            val updatedPowerUps = newPowerUps.map { pu ->
-                val nx = pu.x + pu.dx
-                val ny = pu.y + pu.dy
-                var ndx = pu.dx
-                var ndy = pu.dy
+            // Filter PowerUps by lifetime (10 seconds)
+            val alivePowerUps = basePowerUps.filter { currentTime - it.spawnTime < 10000L }
 
+            val updatedPowerUps = alivePowerUps.map { pu ->
                 val puWidthPx = pu.widthDp * pixelDensity
                 val puHeightPx = pu.heightDp * pixelDensity
-
+                var nx = pu.x + pu.dx
+                var ny = pu.y + pu.dy
+                var ndx = pu.dx
+                var ndy = pu.dy
                 if ((nx < puWidthPx / 2f && ndx < 0) || (nx > screenWidthPx - puWidthPx / 2f && ndx > 0)) ndx = -ndx
                 if ((ny < puHeightPx / 2f && ndy < 0) || (ny > screenHeightPx - puHeightPx / 2f && ndy > 0)) ndy = -ndy
-
                 pu.copy(x = nx, y = ny, dx = ndx, dy = ndy)
             }
 
@@ -395,7 +392,7 @@ class GameViewModel : ViewModel() {
                 inventory = s.inventory,
                 infiniteStaminaUntil = s.infiniteStaminaUntil,
                 enemySlowUntil = s.enemySlowUntil,
-                c4s = updatedC4s,
+                c4s = finalC4s,
                 shakeTriggerTime = if (newHp <= 0 && s.hp > 0) currentTime else newShakeTriggerTime,
                 shakeIntensity = if (newHp <= 0 && s.hp > 0) 30f else newShakeIntensity,
                 lastDamageTime = if (newHp < s.hp) currentTime else s.lastDamageTime
@@ -516,8 +513,20 @@ class GameViewModel : ViewModel() {
             var c4Hit = false
 
             s.c4s.forEach { c4 ->
+                val cw = c4.widthDp * pixelDensity
+                val ch = c4.heightDp * pixelDensity
+                val cx = c4.x - cw / 2
+                val cy = c4.y - ch / 2
+                
                 val isHit = slashesToApply.any { (st, en) ->
-                    isLineIntersectingRect(st, en, c4.x - (c4.widthDp * pixelDensity) / 2, c4.y - (c4.heightDp * pixelDensity) / 2, c4.widthDp * pixelDensity, c4.heightDp * pixelDensity)
+                    // High-performance AABB check
+                    val minLX = if (st.x < en.x) st.x else en.x
+                    val maxLX = if (st.x > en.x) st.x else en.x
+                    val minLY = if (st.y < en.y) st.y else en.y
+                    val maxLY = if (st.y > en.y) st.y else en.y
+                    
+                    if (maxLX < cx || minLX > cx + cw || maxLY < cy || minLY > cy + ch) false
+                    else isLineIntersectingRect(st, en, cx, cy, cw, ch)
                 }
                 if (isHit) {
                     c4Hit = true
@@ -526,8 +535,20 @@ class GameViewModel : ViewModel() {
             }
 
             s.enemies.forEach { enemy ->
+                val ex = enemy.x - enemy.hitboxWidthPx / 2
+                val ey = enemy.y - enemy.hitboxHeightPx / 2
+                val ew = enemy.hitboxWidthPx
+                val eh = enemy.hitboxHeightPx
+
                 val isHit = slashesToApply.any { (st, en) ->
-                    isLineIntersectingRect(st, en, enemy.x - enemy.hitboxWidthPx / 2, enemy.y - enemy.hitboxHeightPx / 2, enemy.hitboxWidthPx, enemy.hitboxHeightPx)
+                    // High-performance AABB check
+                    val minLX = if (st.x < en.x) st.x else en.x
+                    val maxLX = if (st.x > en.x) st.x else en.x
+                    val minLY = if (st.y < en.y) st.y else en.y
+                    val maxLY = if (st.y > en.y) st.y else en.y
+                    
+                    if (maxLX < ex || minLX > ex + ew || maxLY < ey || minLY > ey + eh) false
+                    else isLineIntersectingRect(st, en, ex, ey, ew, eh)
                 }
                 
                 if (isHit && currentTime - enemy.lastHitTime > 300) {

@@ -121,7 +121,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
     val characterSizePx = remember(sizechar, density) { with(density) { sizechar.toPx() } }
     
     val characterX = remember(screenWidthPx) { screenWidthPx / 2f }
-    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.4f).toPx() } }
+    val characterY = remember(screenHeightPx, sizechar, density) { screenHeightPx - with(density) { (sizechar * 0.35f).toPx() } } // Lowered character position (from 0.4f to 0.35f)
 
     val shooterStopDistDraw = remember(density) { 450f * density.density }
     val shooterStopDistDrawSq = remember(shooterStopDistDraw) { shooterStopDistDraw * shooterStopDistDraw }
@@ -149,83 +149,56 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             .build()
     }
 
-    // Pre-load painters with specific sizes to reduce memory/CPU usage
+    // Pre-load painters with remember to avoid recreating ImageRequests every frame
     val bulletPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.bullet)
-            .size(100) // Limit decode size
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.bullet).size(100).build() }, 
         imageLoader = imageLoader
     )
     val fastEnemyPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.sm_enemy)
-            .size(180)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.sm_enemy).size(180).build() }, 
         imageLoader = imageLoader
     )
     val bigEnemyPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.b_enemy)
-            .size(450)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.b_enemy).size(450).build() }, 
         imageLoader = imageLoader
     )
     val shootEnemyMovePainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.s_enemy)
-            .size(300)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.s_enemy).size(300).build() }, 
         imageLoader = imageLoader
     )
     val shootEnemyIdlePainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.ss_enemy)
-            .size(300)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.ss_enemy).size(300).build() }, 
         imageLoader = imageLoader
     )
     val normalEnemyPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.n_enemy)
-            .size(240)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.n_enemy).size(240).build() }, 
         imageLoader = imageLoader
     )
     val bgPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.bg)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.bg).build() }, 
         imageLoader = imageLoader
     )
     val charPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(if (isRealCat) R.drawable.realcat else R.drawable.b_cat)
-            .size(if (isRealCat) 200 else 600)
-            .build(), 
+        model = remember(context, isRealCat) { 
+            ImageRequest.Builder(context)
+                .data(if (isRealCat) R.drawable.realcat else R.drawable.b_cat)
+                .size(if (isRealCat) 150 else 600) // Reduced real cat size from 200 to 150
+                .build() 
+        }, 
         imageLoader = imageLoader
     )
     val bossPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.boss)
-            .size(800)
-            .build(), 
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.boss).size(800).build() }, 
         imageLoader = imageLoader
     )
 
     val c4Painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.c4)
-            .size(240)
-            .build(),
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.c4).size(240).build() },
         imageLoader = imageLoader
     )
 
     val bombPainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(R.drawable.bomb)
-            .size(240)
-            .build(),
+        model = remember(context) { ImageRequest.Builder(context).data(R.drawable.bomb).size(240).build() },
         imageLoader = imageLoader
     )
     
@@ -305,12 +278,18 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         PowerUpType.CAT_BAR -> catBarPainter
                         PowerUpType.TIME_STOP -> timePainter
                     }
+                    val lifetime = System.currentTimeMillis() - pu.spawnTime
+                    val alphaValue = if (lifetime > 8000L) {
+                        max(0f, 1f - (lifetime - 8000L) / 2000f)
+                    } else 1f
+
                     Box(
                         modifier = Modifier
                             .size(width = (pu.widthDp * 1.5f).dp, height = (pu.heightDp * 1.5f).dp)
                             .graphicsLayer {
                                 translationX = pu.x - (pu.widthDp * 1.5f * density.density) / 2
                                 translationY = pu.y - (pu.heightDp * 1.5f * density.density) / 2
+                                alpha = alphaValue
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -319,11 +298,11 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             val radius = size.minDimension / 2.2f * bubbleScale
                             val bubbleBlue = Color(0xFF81D4FA)
                             drawCircle(
-                                color = bubbleBlue.copy(alpha = bubbleAlpha * 0.3f),
+                                color = bubbleBlue.copy(alpha = bubbleAlpha * 0.3f * alphaValue),
                                 radius = radius
                             )
                             drawCircle(
-                                color = bubbleBlue.copy(alpha = bubbleAlpha),
+                                color = bubbleBlue.copy(alpha = bubbleAlpha * alphaValue),
                                 radius = radius,
                                 style = Stroke(width = 2.dp.toPx())
                             )
@@ -392,9 +371,15 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             // C4 Hazards
             state.c4s.forEach { c4 ->
                 key(c4.id) {
+                    val lifetime = System.currentTimeMillis() - c4.spawnTime
+                    val alpha = if (lifetime > 8000L) {
+                        max(0f, 1f - (lifetime - 8000L) / 2000f)
+                    } else 1f
+                    
                     Image(
                         painter = c4Painter,
                         contentDescription = null,
+                        alpha = alpha,
                         modifier = Modifier
                             .size(width = c4.widthDp.dp, height = c4.heightDp.dp)
                             .graphicsLayer {
