@@ -181,7 +181,7 @@ User Touch Input
 
 ## 🎮 Gameplay Video
 
-[![SweepNeko Gameplay](https://img.youtube.com/vi/hBfKlV3If7o/hqdefault.jpg)](https://youtu.be/hBfKlV3If7o)
+[![SweepNeko Gameplay](https://img.youtube.com/vi/kh5lyuBxuec/hqdefault.jpg)](https://youtu.be/kh5lyuBxuec)
 
 > คลิกที่ภาพเพื่อรับชม Gameplay บน YouTube
 
