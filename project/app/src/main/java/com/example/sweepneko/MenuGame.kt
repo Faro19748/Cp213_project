@@ -70,6 +70,11 @@ class MenuGame : ComponentActivity() {
         super.onResume()
         SoundManager.playMenuMusic()
     }
+
+    override fun onPause() {
+        super.onPause()
+        SoundManager.pauseAllMusic()
+    }
 }
 
 @Composable
@@ -255,7 +260,7 @@ fun GameMenuScreen(modifier: Modifier = Modifier) {
             confirmButton = {
                 TextButton(onClick = {
                     showExitDialog.value = false
-                    activity?.finish()
+                    activity?.finishAffinity()
                 }) {
                     Text("Exit")
                 }

@@ -169,8 +169,8 @@ class GameViewModel : ViewModel() {
                 val w = c4.widthDp * pixelDensity
                 val h = c4.heightDp * pixelDensity
                 
-                if (nx < w/2f || nx > screenWidthPx - w/2f) ndx = -ndx
-                if (ny < h/2f || ny > screenHeightPx - h/2f) ndy = -ndy
+                if ((nx < w / 2f && ndx < 0) || (nx > screenWidthPx - w / 2f && ndx > 0)) ndx = -ndx
+                if ((ny < h / 2f && ndy < 0) || (ny > screenHeightPx - h / 2f && ndy > 0)) ndy = -ndy
                 
                 c4.copy(x = nx, y = ny, dx = ndx, dy = ndy)
             }.toMutableList()
@@ -179,14 +179,13 @@ class GameViewModel : ViewModel() {
                 lastC4SpawnTime = currentTime
                 val w = 80f * pixelDensity
                 val h = 80f * pixelDensity
-                val angle = Math.random() * 2 * Math.PI
-                val speed = 10f
+                val spawn = getRandomEdgeSpawn(screenWidthPx, screenHeightPx, w, h, 10f)
                 updatedC4s.add(C4Hazard(
                     id = System.currentTimeMillis(),
-                    x = (Math.random() * (screenWidthPx - w) + w/2).toFloat(),
-                    y = (Math.random() * (screenHeightPx - h) + h/2).toFloat(),
-                    dx = (cos(angle) * speed).toFloat(),
-                    dy = (sin(angle) * speed).toFloat(),
+                    x = spawn.x,
+                    y = spawn.y,
+                    dx = spawn.dx,
+                    dy = spawn.dy,
                     spawnTime = currentTime
                 ))
             }
@@ -194,21 +193,16 @@ class GameViewModel : ViewModel() {
                 spawnCount++
                 val puType = PowerUpType.entries.random()
                 val puWidthPx = 60f * pixelDensity
-                val spawnX = (Math.random() * (screenWidthPx - puWidthPx) + puWidthPx / 2f).toFloat()
-                val spawnY = (Math.random() * (screenHeightPx * 0.5f) + screenHeightPx * 0.2f).toFloat()
-                
-                val angle = Math.random() * 2 * Math.PI
-                val puSpeed = 8f // Increased from 2f
-                val pdx = (cos(angle) * puSpeed).toFloat()
-                val pdy = (sin(angle) * puSpeed).toFloat()
+                val puHeightPx = 60f * pixelDensity
+                val spawn = getRandomEdgeSpawn(screenWidthPx, screenHeightPx, puWidthPx, puHeightPx, 8f)
                 
                 newPowerUps.add(PowerUp(
                     id = spawnCount,
-                    x = spawnX,
-                    y = spawnY,
+                    x = spawn.x,
+                    y = spawn.y,
                     type = puType,
-                    dx = pdx,
-                    dy = pdy
+                    dx = spawn.dx,
+                    dy = spawn.dy
                 ))
             }
 
@@ -222,8 +216,8 @@ class GameViewModel : ViewModel() {
                 val puWidthPx = pu.widthDp * pixelDensity
                 val puHeightPx = pu.heightDp * pixelDensity
 
-                if (nx < puWidthPx / 2f || nx > screenWidthPx - puWidthPx / 2f) ndx = -ndx
-                if (ny < puHeightPx / 2f || ny > screenHeightPx - puHeightPx / 2f) ndy = -ndy
+                if ((nx < puWidthPx / 2f && ndx < 0) || (nx > screenWidthPx - puWidthPx / 2f && ndx > 0)) ndx = -ndx
+                if ((ny < puHeightPx / 2f && ndy < 0) || (ny > screenHeightPx - puHeightPx / 2f && ndy > 0)) ndy = -ndy
 
                 pu.copy(x = nx, y = ny, dx = ndx, dy = ndy)
             }
@@ -712,4 +706,48 @@ class GameViewModel : ViewModel() {
         val uB = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator
         return uA in 0f..1f && uB in 0f..1f
     }
+
+    private fun getRandomEdgeSpawn(
+        screenWidth: Float,
+        screenHeight: Float,
+        objWidth: Float,
+        objHeight: Float,
+        speed: Float
+    ): SpawnResult {
+        val edge = (0..3).random() // 0: Top, 1: Bottom, 2: Left, 3: Right
+        var x = 0f
+        var y = 0f
+        var dx = 0f
+        var dy = 0f
+
+        when (edge) {
+            0 -> { // Top
+                x = (Math.random() * (screenWidth - objWidth) + objWidth / 2).toFloat()
+                y = -objHeight / 2
+                dx = (Math.random().toFloat() - 0.5f) * speed
+                dy = speed
+            }
+            1 -> { // Bottom
+                x = (Math.random() * (screenWidth - objWidth) + objWidth / 2).toFloat()
+                y = screenHeight + objHeight / 2
+                dx = (Math.random().toFloat() - 0.5f) * speed
+                dy = -speed
+            }
+            2 -> { // Left
+                x = -objWidth / 2
+                y = (Math.random() * (screenHeight - objHeight) + objHeight / 2).toFloat()
+                dx = speed
+                dy = (Math.random().toFloat() - 0.5f) * speed
+            }
+            3 -> { // Right
+                x = screenWidth + objWidth / 2
+                y = (Math.random() * (screenHeight - objHeight) + objHeight / 2).toFloat()
+                dx = -speed
+                dy = (Math.random().toFloat() - 0.5f) * speed
+            }
+        }
+        return SpawnResult(x, y, dx, dy)
+    }
+
+    private data class SpawnResult(val x: Float, val y: Float, val dx: Float, val dy: Float)
 }

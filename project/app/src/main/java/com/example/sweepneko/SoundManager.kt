@@ -120,6 +120,14 @@ object SoundManager {
         }
     }
 
+    fun pauseAllMusic() {
+        listOf(menuPlayer, mainPlayer, bossPlayer, gameOverPlayer).forEach {
+            if (it?.isPlaying == true) {
+                it.pause()
+            }
+        }
+    }
+
     fun stopAllMusic() {
         if (ultStreamId != 0) {
             soundPool?.stop(ultStreamId)
