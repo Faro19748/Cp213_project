@@ -129,22 +129,6 @@ User Touch Input
 
 ---
 
-## 🖼️ Wireframe
-
-แผนผังหน้าจอของเกมและความสัมพันธ์ระหว่าง Screen ต่าง ๆ
-
-![SweepNeko Wireframe](wireframe.png)
-
-| หน้าจอ | คำอธิบาย |
-|---|---|
-| **Menu Game** | หน้าหลักของแอป แสดงตัวละครแมว, ปุ่ม Play / Setting / Exit |
-| **Main Game** | พื้นที่เล่นหลัก — Enemy Zone, HP/SP Bar, ปุ่ม Ult และ Pause |
-| **Setting** | ปรับระดับเสียง BGM และ SFX ผ่าน Slider |
-| **Pause Menu** | หยุดเกม — เลือก Resume กลับเล่น หรือ Main Menu |
-| **Gameover Menu** | เมื่อ HP หมด — เลือก Restart หรือกลับ Main Menu |
-
----
-
 ## 🛠️ Tech Stack
 
 | ส่วน | เทคโนโลยี |
