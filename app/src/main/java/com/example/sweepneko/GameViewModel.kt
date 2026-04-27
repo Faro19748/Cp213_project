@@ -608,8 +608,16 @@ class GameViewModel : ViewModel() {
                 isNextSlashRed = (newComboCount > 0 && newComboCount % 10 == 0),
                 isUltimateActive = false,
                 enemiesKilledInWave = newEnemiesKilledInWave,
-                shakeTriggerTime = if (wasRed) currentTime else newShakeTriggerTime,
-                shakeIntensity = if (wasRed) 15f else newShakeIntensity,
+                shakeTriggerTime = when {
+                    isUltSlash -> currentTime
+                    wasRed -> currentTime
+                    else -> newShakeTriggerTime
+                },
+                shakeIntensity = when {
+                    isUltSlash -> 20f
+                    wasRed -> 15f
+                    else -> newShakeIntensity
+                },
                 lastDamageTime = finalLastDamageTime,
                 c4s = s.c4s.filter { c4 ->
                     !slashesToApply.any { (st, en) ->
@@ -652,16 +660,13 @@ class GameViewModel : ViewModel() {
     }
 
     fun activateUltimate() {
-        val currentTime = System.currentTimeMillis()
         _state.update { s ->
             if (!s.isUltimateActive && s.ultimateGauge >= 100f) {
                 SoundManager.playUltMusic()
                 s.copy(
                     isUltimateActive = true, 
                     ultimateGauge = 0f, 
-                    stamina = min(100f, s.stamina + 50f),
-                    shakeTriggerTime = currentTime,
-                    shakeIntensity = 20f
+                    stamina = min(100f, s.stamina + 50f)
                 )
             } else s
         }
