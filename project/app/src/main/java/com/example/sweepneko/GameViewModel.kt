@@ -657,7 +657,10 @@ class GameViewModel : ViewModel() {
                             isLineIntersectingRect(st, en, pu.x - (pu.widthDp * pixelDensity) / 2, pu.y - (pu.heightDp * pixelDensity) / 2, pu.widthDp * pixelDensity, pu.heightDp * pixelDensity)
                         }
                     }
-                    if (hitPowerUps.isNotEmpty()) listOf(hitPowerUps.last().type) else s.inventory
+                    if (hitPowerUps.isNotEmpty()) {
+                        SoundManager.playSFX("use")
+                        listOf(hitPowerUps.last().type)
+                    } else s.inventory
                 } else s.inventory
             ).also {
                 if (s.isUltimateActive) {
