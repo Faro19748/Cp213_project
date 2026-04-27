@@ -179,6 +179,14 @@ User Touch Input
 
 ---
 
+## 🎮 Gameplay Video
+
+[![SweepNeko Gameplay](https://img.youtube.com/vi/hBfKlV3If7o/maxresdefault.jpg)](https://youtu.be/hBfKlV3If7o)
+
+> คลิกที่ภาพเพื่อรับชม Gameplay บน YouTube
+
+---
+
 <div align="center">
 
 *พัฒนาเป็นส่วนหนึ่งของรายวิชา CP213*
