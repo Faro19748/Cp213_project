@@ -154,6 +154,15 @@ User Touch Input
 
 ---
 
+## 🙏 Special Thanks
+
+| การใช้งาน | เพลง | จาก |
+|---|---|---|
+| 🎵 Menu OST | Sam | Eastward OST |
+| 🎵 Background OST | Bar | Eastward OST |
+
+---
+
 <div align="center">
 
 *พัฒนาเป็นส่วนหนึ่งของรายวิชา CP213*
