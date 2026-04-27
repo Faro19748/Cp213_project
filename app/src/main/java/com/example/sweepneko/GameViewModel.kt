@@ -282,10 +282,11 @@ class GameViewModel : ViewModel() {
             val charTop = characterY - characterHitboxHeightPx / 2f
             val charBottom = characterY + characterHitboxHeightPx / 2f
             val shooterStopDist = 450f * pixelDensity
+            val projectileSpeedMult = if (currentTime < s.enemySlowUntil) 0.125f else 1f
 
             s.projectiles.forEach { p ->
-                val pnx = p.x + p.dx
-                val pny = p.y + p.dy
+                val pnx = p.x + p.dx * projectileSpeedMult
+                val pny = p.y + p.dy * projectileSpeedMult
                 val pRadius = (p.widthDp / 2f) * pixelDensity
 
                 if (pnx + pRadius > charLeft && pnx - pRadius < charRight &&

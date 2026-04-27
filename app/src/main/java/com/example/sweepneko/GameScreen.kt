@@ -71,6 +71,26 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
         label = "c4Rotation"
     )
 
+    val bubbleTransition = rememberInfiniteTransition(label = "bubble")
+    val bubbleScale by bubbleTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bubbleScale"
+    )
+    val bubbleAlpha by bubbleTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bubbleAlpha"
+    )
+
     val shakeOffsetX: Float
     val shakeOffsetY: Float
     
@@ -285,16 +305,37 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         PowerUpType.CAT_BAR -> catBarPainter
                         PowerUpType.TIME_STOP -> timePainter
                     }
-                    Image(
-                        painter = painter,
-                        contentDescription = null,
+                    Box(
                         modifier = Modifier
-                            .size(width = pu.widthDp.dp, height = pu.heightDp.dp)
+                            .size(width = (pu.widthDp * 1.5f).dp, height = (pu.heightDp * 1.5f).dp)
                             .graphicsLayer {
-                                translationX = pu.x - (pu.widthDp * density.density) / 2
-                                translationY = pu.y - (pu.heightDp * density.density) / 2
-                            }
-                    )
+                                translationX = pu.x - (pu.widthDp * 1.5f * density.density) / 2
+                                translationY = pu.y - (pu.heightDp * 1.5f * density.density) / 2
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Bubble Effect
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val radius = size.minDimension / 2.2f * bubbleScale
+                            val bubbleBlue = Color(0xFF81D4FA)
+                            drawCircle(
+                                color = bubbleBlue.copy(alpha = bubbleAlpha * 0.3f),
+                                radius = radius
+                            )
+                            drawCircle(
+                                color = bubbleBlue.copy(alpha = bubbleAlpha),
+                                radius = radius,
+                                style = Stroke(width = 2.dp.toPx())
+                            )
+                        }
+                        
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(width = pu.widthDp.dp, height = pu.heightDp.dp)
+                        )
+                    }
                 }
             }
 
