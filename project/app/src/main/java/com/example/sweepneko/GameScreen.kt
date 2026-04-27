@@ -411,7 +411,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
             val currentTimeRender = System.currentTimeMillis()
             state.fadingEnemies.forEach { fading ->
                 key("dead_${fading.enemy.id}") {
-                    val alpha = max(0f, 1f - (currentTimeRender - fading.deathTime) / 1000f)
+                    val timeSinceDeath = currentTimeRender - fading.deathTime
+                    val alpha = max(0f, 1f - timeSinceDeath / 1000f)
                     val painter = when (fading.enemy.type) {
                         EnemyType.FAST -> deadFastPainter
                         EnemyType.BIG -> deadBigPainter
@@ -419,6 +420,11 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                         EnemyType.BOSS -> deadBossPainter
                         else -> deadNormalPainter
                     }
+                    
+                    // Bounce Effect
+                    val bounceProgress = min(1f, timeSinceDeath / 400f)
+                    val bounceScale = 1f + 0.3f * (1f - bounceProgress) * kotlin.math.sin(bounceProgress * kotlin.math.PI * 3f).toFloat()
+
                     Image(
                         painter = painter,
                         contentDescription = null,
@@ -428,7 +434,8 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: GameViewModel = viewMod
                             .graphicsLayer {
                                 translationX = fading.enemy.x - fading.enemy.widthPx / 2
                                 translationY = fading.enemy.y - fading.enemy.heightPx / 2
-                                scaleX = if (fading.enemy.isFlipped) -1f else 1f
+                                scaleX = (if (fading.enemy.isFlipped) -1f else 1f) * bounceScale
+                                scaleY = bounceScale
                             }
                     )
                 }
