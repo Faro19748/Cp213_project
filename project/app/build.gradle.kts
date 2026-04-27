@@ -5,15 +5,11 @@ plugins {
 
 android {
     namespace = "com.example.sweepneko"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.sweepneko"
-        minSdk = 35
+        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
